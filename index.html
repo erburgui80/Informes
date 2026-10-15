@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard ITSM - Peticiones e Incidencias por Complejo</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js & DataLabels Plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <!-- SheetJS (XLSX Reader) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- ExcelJS (Styled XLSX Generator) -->
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
+    <!-- FileSaver -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        .tab-btn.active {
+            border-bottom: 3px solid #1F4E78;
+            color: #1F4E78;
+            font-weight: 700;
+            background-color: #f0f4f8;
+        }
+        .subtotal-row {
+            background-color: #EBF1F5;
+            font-weight: 600;
+        }
+        .total-row {
+            background-color: #1F4E78;
+            color: #ffffff;
+            font-weight: 700;
+        }
+        @keyframes pulse-border {
+            0%, 100% { border-color: rgba(59, 130, 246, 0.6); }
+            50% { border-color: rgba(31, 78, 120, 1); box-shadow: 0 0 15px rgba(31, 78, 120, 0.3); }
+        }
+        .waiting-pulse {
+            animation: pulse-border 2s infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans text-gray-800">
+
+    <!-- HEADER -->
+    <header class="bg-[#1F4E78] text-white p-5 shadow-lg">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-bold flex items-center gap-3">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    Dashboard ITSM: Peticiones e Incidencias
+                </h1>
+                <p class="text-sm text-blue-100 mt-1">Consolidado por Complejos Industriales</p>
+            </div>
+            <div>
+                <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-lg shadow transition duration-200 flex items-center gap-2 text-sm">
+                    <i class="fa-solid fa-file-excel"></i>
+                    Exportar Todo a Excel (.xlsx)
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-4 md:p-6">
+
+        <!-- DUAL FILE UPLOADER -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div id="boxPet" class="bg-gradient-to-br from-blue-50 to-white p-6 rounded-2xl shadow-lg border-4 border-dashed border-blue-400 hover:border-blue-600 transition-all cursor-pointer text-center waiting-pulse relative overflow-hidden" onclick="document.getElementById('filePet').click()">
+                <div class="absolute top-3 right-3 bg-blue-100 text-blue-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">Paso 1</div>
+                <input type="file" id="filePet" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleFileUpload(event, 'pet')">
+                <div class="inline-block p-4 rounded-full bg-blue-100 text-blue-600 mb-3 shadow-sm">
+                    <i class="fa-solid fa-cloud-arrow-up text-4xl fa-bounce"></i>
+                </div>
+                <h3 class="text-lg font-bold text-blue-900">Cargar Archivo de Peticiones</h3>
+                <p class="text-xs text-gray-500 mt-1">Haz clic aquí para seleccionar tu fichero (.xlsx, .xls, .csv)</p>
+                <div id="statusPet" class="mt-3 inline-block bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full shadow-inner">
+                    <i class="fa-solid fa-clock"></i> ⚠️ A la espera de archivo...
+                </div>
+            </div>
+
+            <div id="boxInc" class="bg-gradient-to-br from-red-50 to-white p-6 rounded-2xl shadow-lg border-4 border-dashed border-red-400 hover:border-red-600 transition-all cursor-pointer text-center waiting-pulse relative overflow-hidden" onclick="document.getElementById('fileInc').click()">
+                <div class="absolute top-3 right-3 bg-red-100 text-red-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">Paso 2</div>
+                <input type="file" id="fileInc" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleFileUpload(event, 'inc')">
+                <div class="inline-block p-4 rounded-full bg-red-100 text-red-600 mb-3 shadow-sm">
+                    <i class="fa-solid fa-cloud-arrow-up text-4xl fa-bounce"></i>
+                </div>
+                <h3 class="text-lg font-bold text-red-900">Cargar Archivo de Incidencias</h3>
+                <p class="text-xs text-gray-500 mt-1">Haz clic aquí para seleccionar tu fichero (.xlsx, .xls, .csv)</p>
+                <div id="statusInc" class="mt-3 inline-block bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full shadow-inner">
+                    <i class="fa-solid fa-clock"></i> ⚠️ A la espera de archivo...
+                </div>
+            </div>
+        </section>
+
+        <!-- KPI SUMMARY CARDS -->
+        <section class="mb-8">
+            <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <i class="fa-solid fa-industry text-[#1F4E78]"></i>
+                Resumen por Complejo (Cargue ambos archivos para visualizar el consolidado)
+            </h2>
+            <div id="kpiCardsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Generado dinámicamente -->
+            </div>
+        </section>
+
+        <!-- NAVIGATION TABS -->
+        <nav class="bg-white rounded-t-xl shadow mb-0 overflow-x-auto border-b border-gray-200">
+            <div class="flex whitespace-nowrap min-w-full text-sm">
+                <button onclick="switchTab('tab1')" id="btn-tab1" class="tab-btn active px-4 py-3 font-medium text-gray-600 hover:text-[#1F4E78]">Resumen por Complejo</button>
+                <button onclick="switchTab('tab2')" id="btn-tab2" class="tab-btn px-4 py-3 font-medium text-gray-600 hover:text-[#1F4E78]">Desglose Categorías</button>
+                <button onclick="switchTab('tab3')" id="btn-tab3" class="tab-btn px-4 py-3 font-medium text-gray-600 hover:text-[#1F4E78]">Peticiones - Tipo</button>
+                <button onclick="switchTab('tab4')" id="btn-tab4" class="tab-btn px-4 py-3 font-medium text-gray-600 hover:text-[#1F4E78]">Peticiones - Complejo</button>
+                <button onclick="switchTab('tab5')" id="btn-tab5" class="tab-btn px-4 py-3 font-medium text-gray-600 hover:text-[#1F4E78]">Peticiones Total Complejo</button>
+                <button onclick="switchTab('tab6')" id="btn-tab6" class="tab-btn px-4 py-3 font-medium text-gray-600 hover:text-[#1F4E78]">Incidencias - Tipo</button>
+                <button onclick="switchTab('tab7')" id="btn-tab7" class="tab-btn px-4 py-3 font-medium text-gray-600 hover:text-[#1F4E78]">Incidencias - Complejo</button>
+                <button onclick="switchTab('tab8')" id="btn-tab8" class="tab-btn px-4 py-3 font-medium text-gray-600 hover:text-[#1F4E78]">Incidencias Total Complejo</button>
+                <button onclick="switchTab('tab9')" id="btn-tab9" class="tab-btn px-4 py-3 font-medium text-gray-600 hover:text-[#1F4E78]">Comparativa Global</button>
+                <button onclick="switchTab('tab10')" id="btn-tab10" class="tab-btn px-4 py-3 font-medium text-gray-600 hover:text-[#1F4E78]">Distribución % Peticiones</button>
+                <button onclick="switchTab('tab11')" id="btn-tab11" class="tab-btn px-4 py-3 font-medium text-gray-600 hover:text-[#1F4E78]">Distribución % Incidencias</button>
+            </div>
+        </nav>
+
+        <!-- TAB CONTENTS -->
+        <div class="bg-white p-6 rounded-b-xl shadow-md min-h-[400px]">
+            <div id="tab1" class="tab-content">
+                <h3 class="text-xl font-bold mb-4 text-[#1F4E78]">Visión Consolidada por Complejo Industrial</h3>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="font-bold text-blue-900"><i class="fa-solid fa-file-lines"></i> Resumen de Peticiones por Complejo</h4>
+                            <button onclick="copyTable('tblTab1Pet')" class="bg-blue-50 hover:bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-1 rounded border border-blue-200 flex items-center gap-1.5 transition">
+                                <i class="fa-solid fa-copy"></i> Copiar Tabla
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table id="tblTab1Pet" class="w-full text-left border-collapse border border-gray-200 text-sm">
+                                <thead>
+                                    <tr class="bg-blue-900 text-white">
+                                        <th class="p-2.5 border">Complejo</th>
+                                        <th class="p-2.5 border text-right">Peticiones</th>
+                                        <th class="p-2.5 border text-right">% Sobre Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tableTab1Pet"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="font-bold text-red-900"><i class="fa-solid fa-triangle-exclamation"></i> Resumen de Incidencias por Complejo</h4>
+                            <button onclick="copyTable('tblTab1Inc')" class="bg-red-50 hover:bg-red-100 text-red-800 text-xs font-semibold px-2.5 py-1 rounded border border-red-200 flex items-center gap-1.5 transition">
+                                <i class="fa-solid fa-copy"></i> Copiar Tabla
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table id="tblTab1Inc" class="w-full text-left border-collapse border border-gray-200 text-sm">
+                                <thead>
+                                    <tr class="bg-red-900 text-white">
+                                        <th class="p-2.5 border">Complejo</th>
+                                        <th class="p-2.5 border text-right">Incidencias</th>
+                                        <th class="p-2.5 border text-right">% Sobre Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tableTab1Inc"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6">
+                    <div class="flex justify-between items-center mb-2">
+                        <h4 class="font-bold text-[#1F4E78]"><i class="fa-solid fa-chart-column"></i> Total Global de Intervenciones por Complejo</h4>
+                        <button onclick="copyTable('tblTab1Tot')" class="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold px-2.5 py-1 rounded border border-slate-300 flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-copy"></i> Copiar Tabla
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto mb-4">
+                        <table id="tblTab1Tot" class="w-full text-left border-collapse border border-gray-200 text-sm">
+                            <thead>
+                                <tr class="bg-[#1F4E78] text-white">
+                                    <th class="p-2.5 border">Complejo</th>
+                                    <th class="p-2.5 border text-right">Peticiones</th>
+                                    <th class="p-2.5 border text-right">Incidencias</th>
+                                    <th class="p-2.5 border text-right">Total Intervenciones</th>
+                                    <th class="p-2.5 border text-right">% Sobre Total Global</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableTab1Tot"></tbody>
+                        </table>
+                    </div>
+                    <div class="flex justify-end mb-2">
+                        <button onclick="copyChart('chartTab1')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-1 rounded border border-indigo-200 flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-chart-pie"></i> Copiar Gráfico
+                        </button>
+                    </div>
+                    <div class="h-80 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                        <canvas id="chartTab1"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2 -->
+            <div id="tab2" class="tab-content hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold text-[#1F4E78]">Matriz Desglose Cuentas por Categoría</h3>
+                    <button onclick="copyTable('tblTab2')" class="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold px-3 py-1.5 rounded border border-slate-300 flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-copy"></i> Copiar Tabla
+                    </button>
+                </div>
+                <div class="overflow-x-auto mb-4">
+                    <table id="tblTab2" class="w-full text-left border-collapse border border-gray-200 text-sm">
+                        <thead id="headTab2"></thead>
+                        <tbody id="tableTab2"></tbody>
+                    </table>
+                </div>
+                <div class="flex justify-end mb-2">
+                    <button onclick="copyChart('chartTab2')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-1 rounded border border-indigo-200 flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-chart-pie"></i> Copiar Gráfico
+                    </button>
+                </div>
+                <div class="h-80 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                    <canvas id="chartTab2"></canvas>
+                </div>
+            </div>
+
+            <div id="tab3" class="tab-content hidden">
+                <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-[#1F4E78]">Peticiones por Tipo/Categoría</h3><button onclick="copyTable('tblTab3')" class="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold px-3 py-1.5 rounded border border-slate-300 flex items-center gap-1.5 transition"><i class="fa-solid fa-copy"></i> Copiar Tabla</button></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                    <div>
+                        <div class="flex justify-end mb-2"><button onclick="copyChart('chartTab3')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-1 rounded border border-indigo-200 flex items-center gap-1.5 transition"><i class="fa-solid fa-chart-pie"></i> Copiar Gráfico</button></div>
+                        <div class="h-80"><canvas id="chartTab3"></canvas></div>
+                    </div>
+                    <div class="overflow-x-auto"><table id="tblTab3" class="w-full border-collapse border border-gray-200 text-sm"><thead><tr class="bg-[#1F4E78] text-white"><th class="p-2 border">Tipo</th><th class="p-2 border text-right">Cantidad</th><th class="p-2 border text-right">Porcentaje</th></tr></thead><tbody id="tableTab3"></tbody></table></div>
+                </div>
+            </div>
+
+            <div id="tab4" class="tab-content hidden">
+                <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-[#1F4E78]">Peticiones - Desglose Detallado con Subtotales por Complejo</h3><button onclick="copyTable('tblTab4')" class="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold px-3 py-1.5 rounded border border-slate-300 flex items-center gap-1.5 transition"><i class="fa-solid fa-copy"></i> Copiar Tabla</button></div>
+                <div class="overflow-x-auto mb-4"><table id="tblTab4" class="w-full border-collapse border border-gray-200 text-sm"><thead><tr class="bg-[#1F4E78] text-white"><th class="p-2 border">Complejo</th><th class="p-2 border">Tipo</th><th class="p-2 border text-right">Cantidad</th><th class="p-2 border text-right">% sobre Complejo</th></tr></thead><tbody id="tableTab4"></tbody></table></div>
+                <div class="flex justify-end mb-2"><button onclick="copyChart('chartTab4')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-1 rounded border border-indigo-200 flex items-center gap-1.5 transition"><i class="fa-solid fa-chart-pie"></i> Copiar Gráfico</button></div>
+                <div class="h-80 bg-gray-50 p-4 rounded-xl border border-gray-200"><canvas id="chartTab4"></canvas></div>
+            </div>
+
+            <div id="tab5" class="tab-content hidden">
+                <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-[#1F4E78]">Peticiones Total por Complejo</h3><button onclick="copyTable('tblTab5')" class="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold px-3 py-1.5 rounded border border-slate-300 flex items-center gap-1.5 transition"><i class="fa-solid fa-copy"></i> Copiar Tabla</button></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                    <div>
+                        <div class="flex justify-end mb-2"><button onclick="copyChart('chartTab5')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-1 rounded border border-indigo-200 flex items-center gap-1.5 transition"><i class="fa-solid fa-chart-pie"></i> Copiar Gráfico</button></div>
+                        <div class="h-80"><canvas id="chartTab5"></canvas></div>
+                    </div>
+                    <div class="overflow-x-auto"><table id="tblTab5" class="w-full border-collapse border border-gray-200 text-sm"><thead><tr class="bg-[#1F4E78] text-white"><th class="p-2 border">Complejo</th><th class="p-2 border text-right">Peticiones</th><th class="p-2 border text-right">Porcentaje</th></tr></thead><tbody id="tableTab5"></tbody></table></div>
+                </div>
+            </div>
+
+            <div id="tab6" class="tab-content hidden">
+                <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-[#1F4E78]">Incidencias por Tipo/Categoría</h3><button onclick="copyTable('tblTab6')" class="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold px-3 py-1.5 rounded border border-slate-300 flex items-center gap-1.5 transition"><i class="fa-solid fa-copy"></i> Copiar Tabla</button></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                    <div>
+                        <div class="flex justify-end mb-2"><button onclick="copyChart('chartTab6')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-1 rounded border border-indigo-200 flex items-center gap-1.5 transition"><i class="fa-solid fa-chart-pie"></i> Copiar Gráfico</button></div>
+                        <div class="h-80"><canvas id="chartTab6"></canvas></div>
+                    </div>
+                    <div class="overflow-x-auto"><table id="tblTab6" class="w-full border-collapse border border-gray-200 text-sm"><thead><tr class="bg-[#1F4E78] text-white"><th class="p-2 border">Tipo</th><th class="p-2 border text-right">Cantidad</th><th class="p-2 border text-right">Porcentaje</th></tr></thead><tbody id="tableTab6"></tbody></table></div>
+                </div>
+            </div>
+
+            <div id="tab7" class="tab-content hidden">
+                <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-[#1F4E78]">Incidencias - Desglose Detallado con Subtotales por Complejo</h3><button onclick="copyTable('tblTab7')" class="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold px-3 py-1.5 rounded border border-slate-300 flex items-center gap-1.5 transition"><i class="fa-solid fa-copy"></i> Copiar Tabla</button></div>
+                <div class="overflow-x-auto mb-4"><table id="tblTab7" class="w-full border-collapse border border-gray-200 text-sm"><thead><tr class="bg-[#1F4E78] text-white"><th class="p-2 border">Complejo</th><th class="p-2 border">Tipo</th><th class="p-2 border text-right">Cantidad</th><th class="p-2 border text-right">% sobre Complejo</th></tr></thead><tbody id="tableTab7"></tbody></table></div>
+                <div class="flex justify-end mb-2"><button onclick="copyChart('chartTab7')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-1 rounded border border-indigo-200 flex items-center gap-1.5 transition"><i class="fa-solid fa-chart-pie"></i> Copiar Gráfico</button></div>
+                <div class="h-80 bg-gray-50 p-4 rounded-xl border border-gray-200"><canvas id="chartTab7"></canvas></div>
+            </div>
+
+            <div id="tab8" class="tab-content hidden">
+                <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-[#1F4E78]">Incidencias Total por Complejo</h3><button onclick="copyTable('tblTab8')" class="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold px-3 py-1.5 rounded border border-slate-300 flex items-center gap-1.5 transition"><i class="fa-solid fa-copy"></i> Copiar Tabla</button></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                    <div>
+                        <div class="flex justify-end mb-2"><button onclick="copyChart('chartTab8')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-1 rounded border border-indigo-200 flex items-center gap-1.5 transition"><i class="fa-solid fa-chart-pie"></i> Copiar Gráfico</button></div>
+                        <div class="h-80"><canvas id="chartTab8"></canvas></div>
+                    </div>
+                    <div class="overflow-x-auto"><table id="tblTab8" class="w-full border-collapse border border-gray-200 text-sm"><thead><tr class="bg-[#1F4E78] text-white"><th class="p-2 border">Complejo</th><th class="p-2 border text-right">Incidencias</th><th class="p-2 border text-right">Porcentaje</th></tr></thead><tbody id="tableTab8"></tbody></table></div>
+                </div>
+            </div>
+
+            <div id="tab9" class="tab-content hidden">
+                <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-[#1F4E78]">Comparativa Global: Peticiones vs Incidencias</h3><button onclick="copyTable('tblTab9')" class="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold px-3 py-1.5 rounded border border-slate-300 flex items-center gap-1.5 transition"><i class="fa-solid fa-copy"></i> Copiar Tabla</button></div>
+                <div class="overflow-x-auto mb-4"><table id="tblTab9" class="w-full border-collapse border border-gray-200 text-sm"><thead><tr class="bg-[#1F4E78] text-white"><th class="p-2 border">Complejo</th><th class="p-2 border text-right">Peticiones</th><th class="p-2 border text-right">Incidencias</th><th class="p-2 border text-right">Total</th></tr></thead><tbody id="tableTab9"></tbody></table></div>
+                <div class="flex justify-end mb-2"><button onclick="copyChart('chartTab9')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-1 rounded border border-indigo-200 flex items-center gap-1.5 transition"><i class="fa-solid fa-chart-pie"></i> Copiar Gráfico</button></div>
+                <div class="h-96"><canvas id="chartTab9"></canvas></div>
+            </div>
+            
+            <div id="tab10" class="tab-content hidden">
+                <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-[#1F4E78]">Distribución Porcentual (%) - Peticiones</h3><button onclick="copyTable('tblTab10')" class="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold px-3 py-1.5 rounded border border-slate-300 flex items-center gap-1.5 transition"><i class="fa-solid fa-copy"></i> Copiar Tabla</button></div>
+                <div class="overflow-x-auto mb-4"><table id="tblTab10" class="w-full border-collapse border border-gray-200 text-sm"><thead id="headTab10"></thead><tbody id="tableTab10"></tbody></table></div>
+                <div class="flex justify-end mb-2"><button onclick="copyChart('chartTab10')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-1 rounded border border-indigo-200 flex items-center gap-1.5 transition"><i class="fa-solid fa-chart-pie"></i> Copiar Gráfico</button></div>
+                <div class="h-80 bg-gray-50 p-4 rounded-xl border border-gray-200"><canvas id="chartTab10"></canvas></div>
+            </div>
+
+            <div id="tab11" class="tab-content hidden">
+                <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-[#1F4E78]">Distribución Porcentual (%) - Incidencias</h3><button onclick="copyTable('tblTab11')" class="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold px-3 py-1.5 rounded border border-slate-300 flex items-center gap-1.5 transition"><i class="fa-solid fa-copy"></i> Copiar Tabla</button></div>
+                <div class="overflow-x-auto mb-4"><table id="tblTab11" class="w-full border-collapse border border-gray-200 text-sm"><thead id="headTab11"></thead><tbody id="tableTab11"></tbody></table></div>
+                <div class="flex justify-end mb-2"><button onclick="copyChart('chartTab11')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-1 rounded border border-indigo-200 flex items-center gap-1.5 transition"><i class="fa-solid fa-chart-pie"></i> Copiar Gráfico</button></div>
+                <div class="h-80 bg-gray-50 p-4 rounded-xl border border-gray-200"><canvas id="chartTab11"></canvas></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODAL DRILL-DOWN POR COMPLEJO -->
+    <div id="drilldownModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-xl font-bold">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <script>
+        Chart.register(ChartDataLabels);
+
+        const COMPLEX_ORDER = [
+            "SAT CI CARTAGENA", "SAT CI PUERTOLLANO", "SAT_CI_TARRAGONA",
+            "SAT CI PETRONOR", "SAT CI CORUÑA", "SAT CI SINES"
+        ];
+
+        const COMPLEX_SHORT_NAMES = {
+            "SAT CI PETRONOR": "Petronor", "SAT_CI_TARRAGONA": "Tarragona",
+            "SAT CI PUERTOLLANO": "Puertollano", "SAT CI CORUÑA": "Coruña",
+            "SAT CI CARTAGENA": "Cartagena", "SAT CI SINES": "Sines"
+        };
+
+        const TAB1_CUSTOM_ORDER = [
+            "SAT CI PETRONOR", "SAT_CI_TARRAGONA", "SAT CI PUERTOLLANO",
+            "SAT CI CORUÑA", "SAT CI CARTAGENA", "SAT CI SINES"
+        ];
+
+        const ALLOWED_CATEGORIES = ["SW", "Infraestructura", "Monitorizacion", "Backup", "Antivirus", "HW", "CyberArk"];
+        const MULTICOLOR_PALETTE = ['#2563eb', '#16a34a', '#d97706', '#dc2626', '#7c3aed', '#0891b2', '#db2777', '#65a30d'];
+
+        function normalizeCategory(raw) {
+            const clean = String(raw || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+            if (clean.includes("sw") || clean.includes("software")) return "SW";
+            if (clean.includes("infr")) return "Infraestructura";
+            if (clean.includes("monit")) return "Monitorizacion";
+            if (clean.includes("back")) return "Backup";
+            if (clean.includes("antiv")) return "Antivirus";
+            if (clean.includes("hw") || clean.includes("hard")) return "HW";
+            if (clean.includes("cyber")) return "CyberArk";
+            return "Infraestructura";
+        }
+
+        let rawPetitions = [];
+        let rawIncidents = [];
+        let charts = {};
+
+        window.onload = function() {
+            renderAll();
+        };
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.remove('hidden');
+            document.getElementById('btn-' + tabId).classList.add('active');
+        }
+
+        function handleFileUpload(event, fileType) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet, {defval: ""});
+
+                if (jsonData.length === 0) return alert("El archivo está vacío.");
+
+                const sample = jsonData[0];
+                const keys = Object.keys(sample);
+
+                const cleanKeys = keys.map(k => ({
+                    original: k,
+                    clean: k.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase()
+                }));
+
+                const groupObj = cleanKeys.find(k => k.clean.includes("grupo") && k.clean.includes("asignacion")) || cleanKeys[0];
+                const typeObj = cleanKeys.find(k => k.clean === "tipo" || k.clean.includes("tipo")) || cleanKeys[1];
+
+                const groupCol = groupObj ? groupObj.original : keys[0];
+                const typeCol = typeObj ? typeObj.original : (keys[1] || keys[0]);
+
+                const regexSat = /(?:SAT[_\s]CI[_\s]+)(PETRONOR|TARRAGONA|PUERTOLLANO|CORUÑA|CORUNA|CARTAGENA|SINES)/i;
+                const processed = [];
+
+                jsonData.forEach(row => {
+                    const rawGroup = String(row[groupCol] || "").trim();
+                    const rawType = String(row[typeCol] || "Infraestructura").trim();
+
+                    if (!rawGroup) return;
+
+                    let matchedFullName = null;
+                    const match = rawGroup.match(regexSat);
+
+                    if (match && match[1]) {
+                        const token = match[1].toUpperCase();
+                        matchedFullName = COMPLEX_ORDER.find(c => {
+                            const shortName = COMPLEX_SHORT_NAMES[c].toUpperCase();
+                            return shortName === token || (token === "CORUNA" && shortName === "CORUÑA");
+                        });
+                    }
+
+                    if (!matchedFullName) {
+                        const upperGroup = rawGroup.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                        matchedFullName = COMPLEX_ORDER.find(c => upperGroup.includes(COMPLEX_SHORT_NAMES[c].toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")));
+                    }
+
+                    if (matchedFullName) {
+                        processed.push({
+                            complejo: matchedFullName,
+                            tipo: normalizeCategory(rawType)
+                        });
+                    }
+                });
+
+                if (fileType === 'pet') {
+                    rawPetitions = processed;
+                    const box = document.getElementById('boxPet');
+                    box.classList.remove('waiting-pulse', 'border-blue-400');
+                    box.classList.add('border-emerald-500', 'bg-emerald-50/30');
+                    document.getElementById('statusPet').className = "mt-3 inline-block bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full shadow-inner";
+                    document.getElementById('statusPet').innerHTML = `✓ Archivo cargado (${processed.length} registros)`;
+                } else {
+                    rawIncidents = processed;
+                    const box = document.getElementById('boxInc');
+                    box.classList.remove('waiting-pulse', 'border-red-400');
+                    box.classList.add('border-emerald-500', 'bg-emerald-50/30');
+                    document.getElementById('statusInc').className = "mt-3 inline-block bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full shadow-inner";
+                    document.getElementById('statusInc').innerHTML = `✓ Archivo cargado (${processed.length} registros)`;
+                }
+
+                renderAll();
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function renderAll() {
+            renderKPICards();
+            renderTab1();
+            renderTab2();
+            renderTab3();
+            renderTab4();
+            renderTab5();
+            renderTab6();
+            renderTab7();
+            renderTab8();
+            renderTab9();
+            renderTab10();
+            renderTab11();
+        }
+
+        function renderKPICards() {
+            const container = document.getElementById('kpiCardsContainer');
+            container.innerHTML = '';
+
+            const globalTotal = rawPetitions.length + rawIncidents.length;
+
+            let stats = COMPLEX_ORDER.map(comp => {
+                const p = rawPetitions.filter(x => x.complejo === comp).length;
+                const i = rawIncidents.filter(x => x.complejo === comp).length;
+                const tot = p + i;
+                const pct = globalTotal > 0 ? Math.round((tot / globalTotal) * 100) : 0;
+                return { name: COMPLEX_SHORT_NAMES[comp], fullName: comp, pet: p, inc: i, total: tot, pct: pct };
+            });
+
+            stats.sort((a, b) => b.total - a.total);
+
+            stats.forEach(stat => {
+                const card = document.createElement('div');
+                card.className = 'bg-white p-5 rounded-2xl shadow-sm border border-gray-200 flex items-center justify-between hover:shadow-md transition cursor-pointer';
+                card.onclick = () => openComplexDrilldown(stat.fullName);
+                card.innerHTML = `
+                    <div>
+                        <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">COMPLEJO INDUSTRIAL</span>
+                        <h3 class="text-xl font-bold text-gray-900 mt-0.5">${stat.name}</h3>
+                        <div class="text-emerald-700 font-bold text-base mt-1">
+                            ${stat.total} Intervenciones <span class="text-emerald-800">(${stat.pct}%)</span>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1">
+                            Peticiones: <span class="font-semibold text-gray-700">${stat.pet}</span> | Incidencias: <span class="font-semibold text-gray-700">${stat.inc}</span>
+                        </div>
+                    </div>
+                    <div class="bg-emerald-100 p-3 rounded-xl text-emerald-600">
+                        <i class="fa-solid fa-industry text-2xl"></i>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function openComplexDrilldown(compFullName) {
+            const shortName = COMPLEX_SHORT_NAMES[compFullName];
+            const compPet = rawPetitions.filter(x => x.complejo === compFullName);
+            const compInc = rawIncidents.filter(x => x.complejo === compFullName);
+
+            const petMap = {};
+            compPet.forEach(x => petMap[x.tipo] = (petMap[x.tipo] || 0) + 1);
+            const sortedPet = Object.entries(petMap).sort((a, b) => b[1] - a[1]);
+
+            const incMap = {};
+            compInc.forEach(x => incMap[x.tipo] = (incMap[x.tipo] || 0) + 1);
+            const sortedInc = Object.entries(incMap).sort((a, b) => b[1] - a[1]);
+
+            let html = `
+                <h2 class="text-2xl font-bold text-[#1F4E78] mb-1">Complejo: ${shortName}</h2>
+                <p class="text-sm text-gray-500 mb-4">Total Intervenciones: <span class="font-bold text-gray-800">${compPet.length + compInc.length}</span> (Peticiones: ${compPet.length} | Incidencias: ${compInc.length})</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                        <h3 class="font-bold text-blue-900 mb-2"><i class="fa-solid fa-file-lines"></i> Peticiones por Tipo (${compPet.length})</h3>
+                        <ul class="space-y-1 text-sm">
+                            ${sortedPet.length > 0 ? sortedPet.map(([tipo, cnt]) => `
+                                <li class="flex justify-between bg-white px-3 py-1.5 rounded shadow-sm">
+                                    <span>${tipo}</span>
+                                    <span class="font-bold text-blue-800">${cnt}</span>
+                                </li>`).join('') : '<li class="text-gray-500 text-xs">Sin peticiones</li>'}
+                        </ul>
+                    </div>
+
+                    <div class="bg-red-50 p-4 rounded-xl border border-red-200">
+                        <h3 class="font-bold text-red-900 mb-2"><i class="fa-solid fa-triangle-exclamation"></i> Incidencias por Tipo (${compInc.length})</h3>
+                        <ul class="space-y-1 text-sm">
+                            ${sortedInc.length > 0 ? sortedInc.map(([tipo, cnt]) => `
+                                <li class="flex justify-between bg-white px-3 py-1.5 rounded shadow-sm">
+                                    <span>${tipo}</span>
+                                    <span class="font-bold text-red-800">${cnt}</span>
+                                </li>`).join('') : '<li class="text-gray-500 text-xs">Sin incidencias</li>'}
+                        </ul>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('modalContent').innerHTML = html;
+            document.getElementById('drilldownModal').classList.remove('hidden');
+            document.getElementById('drilldownModal').classList.add('flex');
+        }
+
+        function closeModal() {
+            document.getElementById('drilldownModal').classList.remove('flex');
+            document.getElementById('drilldownModal').classList.add('hidden');
+        }
+
+        function renderTab1() {
+            const petTbody = document.getElementById('tableTab1Pet');
+            const incTbody = document.getElementById('tableTab1Inc');
+            const totTbody = document.getElementById('tableTab1Tot');
+            petTbody.innerHTML = '';
+            incTbody.innerHTML = '';
+            totTbody.innerHTML = '';
+
+            const totalPet = rawPetitions.length;
+            const totalInc = rawIncidents.length;
+            const grandTotal = totalPet + totalInc;
+
+            let labelsTab1 = [];
+            let totalsTab1 = [];
+
+            TAB1_CUSTOM_ORDER.forEach(comp => {
+                const sName = COMPLEX_SHORT_NAMES[comp];
+                labelsTab1.push(sName);
+
+                const pCount = rawPetitions.filter(x => x.complejo === comp).length;
+                const pPct = totalPet > 0 ? Math.round((pCount / totalPet) * 100) : 0;
+                petTbody.innerHTML += `<tr class="hover:bg-gray-50 border-b"><td class="p-2.5 font-semibold">${sName}</td><td class="p-2.5 text-right font-bold text-blue-900">${pCount}</td><td class="p-2.5 text-right">${pPct}%</td></tr>`;
+
+                const iCount = rawIncidents.filter(x => x.complejo === comp).length;
+                const iPct = totalInc > 0 ? Math.round((iCount / totalInc) * 100) : 0;
+                incTbody.innerHTML += `<tr class="hover:bg-gray-50 border-b"><td class="p-2.5 font-semibold">${sName}</td><td class="p-2.5 text-right font-bold text-red-900">${iCount}</td><td class="p-2.5 text-right">${iPct}%</td></tr>`;
+
+                const totCount = pCount + iCount;
+                totalsTab1.push(totCount);
+                const totPct = grandTotal > 0 ? Math.round((totCount / grandTotal) * 100) : 0;
+                totTbody.innerHTML += `<tr class="hover:bg-gray-50 border-b"><td class="p-2.5 font-semibold">${sName}</td><td class="p-2.5 text-right">${pCount}</td><td class="p-2.5 text-right">${iCount}</td><td class="p-2.5 text-right font-bold text-[#1F4E78]">${totCount}</td><td class="p-2.5 text-right font-bold">${totPct}%</td></tr>`;
+            });
+
+            petTbody.innerHTML += `<tr class="bg-blue-100 font-bold"><td class="p-2.5 border">TOTAL PETICIONES</td><td class="p-2.5 border text-right text-blue-900">${totalPet}</td><td class="p-2.5 border text-right">100%</td></tr>`;
+            incTbody.innerHTML += `<tr class="bg-red-100 font-bold"><td class="p-2.5 border">TOTAL INCIDENCIAS</td><td class="p-2.5 border text-right text-red-900">${totalInc}</td><td class="p-2.5 border text-right">100%</td></tr>`;
+            totTbody.innerHTML += `<tr class="bg-[#1F4E78] text-white font-bold"><td class="p-2.5 border">TOTAL GLOBAL</td><td class="p-2.5 border text-right">${totalPet}</td><td class="p-2.5 border text-right">${totalInc}</td><td class="p-2.5 border text-right">${grandTotal}</td><td class="p-2.5 border text-right">100%</td></tr>`;
+
+            createOrUpdateChart('chartTab1', 'bar', labelsTab1, totalsTab1, 'Total Intervenciones por Complejo');
+        }
+
+        function renderTab2() {
+            const head = document.getElementById('headTab2');
+            const tbody = document.getElementById('tableTab2');
+
+            let headHTML = `<tr class="bg-[#1F4E78] text-white"><th class="p-2 border">Complejo</th>`;
+            ALLOWED_CATEGORIES.forEach(t => headHTML += `<th class="p-2 border text-right">${t}</th>`);
+            headHTML += `<th class="p-2 border text-right">TOTAL</th></tr>`;
+            head.innerHTML = headHTML;
+
+            tbody.innerHTML = '';
+            const categoryTotals = {};
+            ALLOWED_CATEGORIES.forEach(t => categoryTotals[t] = 0);
+            let absoluteGrandTotal = 0;
+
+            TAB1_CUSTOM_ORDER.forEach(comp => {
+                let rowHTML = `<tr class="hover:bg-gray-50 border-b"><td class="p-2 border font-semibold">${COMPLEX_SHORT_NAMES[comp]}</td>`;
+                let rowSum = 0;
+                ALLOWED_CATEGORIES.forEach(t => {
+                    const cnt = rawPetitions.filter(x=>x.complejo===comp && x.tipo===t).length + rawIncidents.filter(x=>x.complejo===comp && x.tipo===t).length;
+                    rowSum += cnt;
+                    categoryTotals[t] += cnt;
+                    rowHTML += `<td class="p-2 border text-right">${cnt}</td>`;
+                });
+                absoluteGrandTotal += rowSum;
+                rowHTML += `<td class="p-2 border text-right font-bold">${rowSum}</td></tr>`;
+                tbody.innerHTML += rowHTML;
+            });
+
+            let totalRowHTML = `<tr class="total-row"><td class="p-2 border font-bold">TOTAL CATEGORÍAS</td>`;
+            ALLOWED_CATEGORIES.forEach(t => {
+                totalRowHTML += `<td class="p-2 border text-right font-bold">${categoryTotals[t]}</td>`;
+            });
+            totalRowHTML += `<td class="p-2 border text-right font-bold">${absoluteGrandTotal}</td></tr>`;
+            tbody.innerHTML += totalRowHTML;
+
+            createOrUpdateChart('chartTab2', 'bar', ALLOWED_CATEGORIES, ALLOWED_CATEGORIES.map(t => categoryTotals[t]), 'Volumen Total por Categoría');
+        }
+
+        function createOrUpdateChart(canvasId, type, labels, data, title, datasetLabels = null) {
+            if(charts[canvasId]) charts[canvasId].destroy();
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            
+            let datasets = [];
+            if (Array.isArray(data[0])) {
+                datasets = data.map((d, i) => ({
+                    label: datasetLabels[i],
+                    data: d,
+                    backgroundColor: i === 0 ? '#2563eb' : '#dc2626',
+                    borderWidth: 1
+                }));
+            } else {
+                let bgColors = labels.map((_, idx) => MULTICOLOR_PALETTE[idx % MULTICOLOR_PALETTE.length]);
+                datasets = [{
+                    label: title,
+                    data: data,
+                    backgroundColor: bgColors,
+                    borderColor: bgColors,
+                    borderWidth: 1
+                }];
+            }
+
+            charts[canvasId] = new Chart(ctx, {
+                type: type,
+                data: { labels: labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: type === 'doughnut' ? 'bottom' : 'none' },
+                        datalabels: {
+                            color: type === 'doughnut' ? '#fff' : '#333',
+                            font: { weight: 'bold' },
+                            formatter: (value, ctx) => {
+                                let sum = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                                let percentage = sum > 0 ? Math.round((value / sum) * 100) : 0;
+                                return type === 'doughnut' ? `${value} (${percentage}%)` : value;
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderTab3() {
+            const counts = {};
+            ALLOWED_CATEGORIES.forEach(c => counts[c] = 0);
+            rawPetitions.forEach(x => { if(counts[x.tipo] !== undefined) counts[x.tipo]++; });
+            const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+            const labels = sorted.map(x=>x[0]);
+            const data = sorted.map(x=>x[1]);
+            const total = rawPetitions.length;
+
+            createOrUpdateChart('chartTab3', 'doughnut', labels, data, 'Peticiones por Tipo');
+
+            const tbody = document.getElementById('tableTab3');
+            tbody.innerHTML = '';
+            labels.forEach((l, idx) => {
+                const pct = total > 0 ? Math.round((data[idx]/total)*100) : 0;
+                tbody.innerHTML += `<tr><td class="p-2 border">${l}</td><td class="p-2 border text-right">${data[idx]}</td><td class="p-2 border text-right">${pct}%</td></tr>`;
+            });
+        }
+
+        function renderTab4() {
+            const tbody = document.getElementById('tableTab4');
+            tbody.innerHTML = '';
+            let labelsTab4 = [], dataTab4 = [];
+
+            COMPLEX_ORDER.forEach(comp => {
+                const items = rawPetitions.filter(x => x.complejo === comp);
+                const compTotal = items.length;
+                labelsTab4.push(COMPLEX_SHORT_NAMES[comp]);
+                dataTab4.push(compTotal);
+
+                const typeCounts = {};
+                ALLOWED_CATEGORIES.forEach(c => typeCounts[c] = 0);
+                items.forEach(x => { if(typeCounts[x.tipo] !== undefined) typeCounts[x.tipo]++; });
+                const sortedTypes = Object.entries(typeCounts).sort((a,b)=>b[1]-a[1]);
+
+                sortedTypes.forEach(([t, cnt]) => {
+                    const pct = compTotal > 0 ? Math.round((cnt/compTotal)*100) : 0;
+                    tbody.innerHTML += `<tr><td class="p-2 border">${COMPLEX_SHORT_NAMES[comp]}</td><td class="p-2 border">${t}</td><td class="p-2 border text-right">${cnt}</td><td class="p-2 border text-right">${pct}%</td></tr>`;
+                });
+                tbody.innerHTML += `<tr class="subtotal-row"><td class="p-2 border font-bold" colspan="2">TOTAL ${COMPLEX_SHORT_NAMES[comp].toUpperCase()}</td><td class="p-2 border text-right font-bold">${compTotal}</td><td class="p-2 border text-right font-bold">100%</td></tr>`;
+            });
+
+            createOrUpdateChart('chartTab4', 'bar', labelsTab4, dataTab4, 'Peticiones por Complejo');
+        }
+
+        function renderTab5() {
+            let stats = COMPLEX_ORDER.map(c => ({ name: COMPLEX_SHORT_NAMES[c], count: rawPetitions.filter(x => x.complejo === c).length }));
+            stats.sort((a, b) => b.count - a.count);
+            const labels = stats.map(s => s.name);
+            const data = stats.map(s => s.count);
+            const total = rawPetitions.length;
+
+            createOrUpdateChart('chartTab5', 'bar', labels, data, 'Peticiones Total Complejo');
+
+            const tbody = document.getElementById('tableTab5');
+            tbody.innerHTML = '';
+            labels.forEach((l, idx) => {
+                const pct = total > 0 ? Math.round((data[idx]/total)*100) : 0;
+                tbody.innerHTML += `<tr><td class="p-2 border">${l}</td><td class="p-2 border text-right">${data[idx]}</td><td class="p-2 border text-right">${pct}%</td></tr>`;
+            });
+        }
+
+        function renderTab6() {
+            const counts = {};
+            ALLOWED_CATEGORIES.forEach(c => counts[c] = 0);
+            rawIncidents.forEach(x => { if(counts[x.tipo] !== undefined) counts[x.tipo]++; });
+            const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+            const labels = sorted.map(x=>x[0]);
+            const data = sorted.map(x=>x[1]);
+            const total = rawIncidents.length;
+
+            createOrUpdateChart('chartTab6', 'doughnut', labels, data, 'Incidencias por Tipo');
+
+            const tbody = document.getElementById('tableTab6');
+            tbody.innerHTML = '';
+            labels.forEach((l, idx) => {
+                const pct = total > 0 ? Math.round((data[idx]/total)*100) : 0;
+                tbody.innerHTML += `<tr><td class="p-2 border">${l}</td><td class="p-2 border text-right">${data[idx]}</td><td class="p-2 border text-right">${pct}%</td></tr>`;
+            });
+        }
+
+        function renderTab7() {
+            const tbody = document.getElementById('tableTab7');
+            tbody.innerHTML = '';
+            let labelsTab7 = [], dataTab7 = [];
+
+            COMPLEX_ORDER.forEach(comp => {
+                const items = rawIncidents.filter(x => x.complejo === comp);
+                const compTotal = items.length;
+                labelsTab7.push(COMPLEX_SHORT_NAMES[comp]);
+                dataTab7.push(compTotal);
+
+                const typeCounts = {};
+                ALLOWED_CATEGORIES.forEach(c => typeCounts[c] = 0);
+                items.forEach(x => { if(typeCounts[x.tipo] !== undefined) typeCounts[x.tipo]++; });
+                const sortedTypes = Object.entries(typeCounts).sort((a,b)=>b[1]-a[1]);
+
+                sortedTypes.forEach(([t, cnt]) => {
+                    const pct = compTotal > 0 ? Math.round((cnt/compTotal)*100) : 0;
+                    tbody.innerHTML += `<tr><td class="p-2 border">${COMPLEX_SHORT_NAMES[comp]}</td><td class="p-2 border">${t}</td><td class="p-2 border text-right">${cnt}</td><td class="p-2 border text-right">${pct}%</td></tr>`;
+                });
+                tbody.innerHTML += `<tr class="subtotal-row"><td class="p-2 border font-bold" colspan="2">TOTAL ${COMPLEX_SHORT_NAMES[comp].toUpperCase()}</td><td class="p-2 border text-right font-bold">${compTotal}</td><td class="p-2 border text-right font-bold">100%</td></tr>`;
+            });
+
+            createOrUpdateChart('chartTab7', 'bar', labelsTab7, dataTab7, 'Incidencias por Complejo');
+        }
+
+        function renderTab8() {
+            let stats = COMPLEX_ORDER.map(c => ({ name: COMPLEX_SHORT_NAMES[c], count: rawIncidents.filter(x => x.complejo === c).length }));
+            stats.sort((a, b) => b.count - a.count);
+            const labels = stats.map(s => s.name);
+            const data = stats.map(s => s.count);
+            const total = rawIncidents.length;
+
+            createOrUpdateChart('chartTab8', 'bar', labels, data, 'Incidencias Total Complejo');
+
+            const tbody = document.getElementById('tableTab8');
+            tbody.innerHTML = '';
+            labels.forEach((l, idx) => {
+                const pct = total > 0 ? Math.round((data[idx]/total)*100) : 0;
+                tbody.innerHTML += `<tr><td class="p-2 border">${l}</td><td class="p-2 border text-right">${data[idx]}</td><td class="p-2 border text-right">${pct}%</td></tr>`;
+            });
+        }
+
+        function renderTab9() {
+            let stats = COMPLEX_ORDER.map(c => ({
+                name: COMPLEX_SHORT_NAMES[c],
+                pet: rawPetitions.filter(x => x.complejo === c).length,
+                inc: rawIncidents.filter(x => x.complejo === c).length,
+                total: rawPetitions.filter(x => x.complejo === c).length + rawIncidents.filter(x => x.complejo === c).length
+            }));
+            stats.sort((a, b) => b.total - a.total);
+
+            const labels = stats.map(s => s.name);
+            const petData = stats.map(s => s.pet);
+            const incData = stats.map(s => s.inc);
+
+            const tbody = document.getElementById('tableTab9');
+            tbody.innerHTML = '';
+            stats.forEach(s => {
+                tbody.innerHTML += `<tr><td class="p-2 border">${s.name}</td><td class="p-2 border text-right">${s.pet}</td><td class="p-2 border text-right">${s.inc}</td><td class="p-2 border text-right font-bold">${s.total}</td></tr>`;
+            });
+
+            createOrUpdateChart('chartTab9', 'bar', labels, [petData, incData], 'Comparativa: Peticiones vs Incidencias', ['Peticiones', 'Incidencias']);
+        }
+
+        function renderMatrixPct(targetData, headId, bodyId, chartId, titleText) {
+            const head = document.getElementById(headId);
+            const tbody = document.getElementById(bodyId);
+
+            let headHTML = `<tr class="bg-[#1F4E78] text-white"><th class="p-2 border">Complejo</th>`;
+            ALLOWED_CATEGORIES.forEach(t => headHTML += `<th class="p-2 border text-right">${t}</th>`);
+            headHTML += `<th class="p-2 border text-right">TOTAL</th></tr>`;
+            head.innerHTML = headHTML;
+
+            tbody.innerHTML = '';
+            let sums = {};
+            ALLOWED_CATEGORIES.forEach(t => sums[t] = 0);
+
+            COMPLEX_ORDER.forEach(comp => {
+                const compItems = targetData.filter(x=>x.complejo===comp);
+                const compTotal = compItems.length;
+
+                let rowHTML = `<tr class="hover:bg-gray-50 border-b"><td class="p-2 border font-semibold">${COMPLEX_SHORT_NAMES[comp]}</td>`;
+                ALLOWED_CATEGORIES.forEach(t => {
+                    const cnt = compItems.filter(x=>x.tipo===t).length;
+                    sums[t] += cnt;
+                    const pct = compTotal > 0 ? Math.round((cnt/compTotal)*100) : 0;
+                    rowHTML += `<td class="p-2 border text-right">${pct}%</td>`;
+                });
+                rowHTML += `<td class="p-2 border text-right font-bold">100%</td></tr>`;
+                tbody.innerHTML += rowHTML;
+            });
+
+            createOrUpdateChart(chartId, 'bar', ALLOWED_CATEGORIES, ALLOWED_CATEGORIES.map(t => sums[t]), titleText);
+        }
+
+        function renderTab10() { renderMatrixPct(rawPetitions, 'headTab10', 'tableTab10', 'chartTab10', 'Distribución Peticiones por Categoría'); }
+        function renderTab11() { renderMatrixPct(rawIncidents, 'headTab11', 'tableTab11', 'chartTab11', 'Distribución Incidencias por Categoría'); }
+
+        // COPIAR UNA TABLA ESPECÍFICA AL PORTAPAPELES
+        function copyTable(tableId) {
+            const table = document.getElementById(tableId);
+            if (!table) return;
+
+            let tsvData = "";
+            const rows = table.querySelectorAll('tr');
+            rows.forEach(row => {
+                const cols = row.querySelectorAll('th, td');
+                const rowText = Array.from(cols).map(c => c.innerText.trim()).join('\t');
+                tsvData += rowText + '\n';
+            });
+
+            navigator.clipboard.writeText(tsvData).then(() => {
+                alert("¡Tabla copiada al portapapeles! Ya puedes pegarla en Excel (Ctrl + V).");
+            }).catch(err => {
+                console.error("Error al copiar: ", err);
+                alert("No se pudo copiar la tabla.");
+            });
+        }
+
+        // COPIAR UN GRÁFICO ESPECÍFICO COMO IMAGEN PNG AL PORTAPAPELES
+        async function copyChart(chartCanvasId) {
+            const canvas = document.getElementById(chartCanvasId);
+            if (!canvas) return;
+
+            try {
+                canvas.toBlob(async (blob) => {
+                    if (!blob) {
+                        alert("No se pudo generar la imagen del gráfico.");
+                        return;
+                    }
+                    const item = new ClipboardItem({ "image/png": blob });
+                    await navigator.clipboard.write([item]);
+                    alert("¡Gráfico copiado al portapapeles! Ya puedes pegarlo en Excel, Word o PowerPoint (Ctrl + V).");
+                });
+            } catch (err) {
+                console.error("Error al copiar el gráfico: ", err);
+                alert("Tu navegador no soporta la copia directa de imágenes al portapapeles.");
+            }
+        }
+
+        // EXPORTADOR MULTIPESTAÑA EXCEL
+        async function exportToExcel() {
+            try {
+                if (rawPetitions.length === 0 && rawIncidents.length === 0) {
+                    return alert("Debe cargar al menos un archivo de datos antes de exportar.");
+                }
+
+                const workbook = new ExcelJS.Workbook();
+                workbook.creator = "Dashboard ITSM";
+
+                const styleHeader = (row) => {
+                    row.eachCell(cell => {
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '1F4E78' } };
+                        cell.font = { color: { argb: 'FFFFFF' }, bold: true };
+                        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                    });
+                };
+
+                const grandTotal = rawPetitions.length + rawIncidents.length;
+                const totalPet = rawPetitions.length;
+                const totalInc = rawIncidents.length;
+
+                // 1. Resumen por Complejo
+                let tab1Data = [];
+                TAB1_CUSTOM_ORDER.forEach(comp => {
+                    const sName = COMPLEX_SHORT_NAMES[comp];
+                    const p = rawPetitions.filter(x => x.complejo === comp).length;
+                    const i = rawIncidents.filter(x => x.complejo === comp).length;
+                    const tot = p + i;
+                    tab1Data.push([sName, p, i, tot, grandTotal > 0 ? (tot/grandTotal) : 0]);
+                });
+                const ws1 = workbook.addWorksheet('Resumen Complejos');
+                ws1.addRow(['RESUMEN CONSOLIDADO POR COMPLEJO']);
+                ws1.getRow(1).font = { size: 14, bold: true, color: { argb: '1F4E78' } };
+                ws1.addRow([]);
+                const h1 = ws1.addRow(['Complejo', 'Peticiones', 'Incidencias', 'Total Intervenciones', '% Sobre Total Global']);
+                styleHeader(h1);
+                tab1Data.forEach(r => {
+                    const row = ws1.addRow(r);
+                    row.getCell(5).numFmt = '0%';
+                    row.eachCell(cell => {
+                        cell.border = { top: {style:'thin', color:{argb:'D3D3D3'}}, left: {style:'thin', color:{argb:'D3D3D3'}}, bottom: {style:'thin', color:{argb:'D3D3D3'}}, right: {style:'thin', color:{argb:'D3D3D3'}} };
+                    });
+                });
+                ws1.columns.forEach(c => c.width = 22);
+
+                // 2. Desglose Categorías
+                let tab2Data = [];
+                TAB1_CUSTOM_ORDER.forEach(comp => {
+                    let row = [COMPLEX_SHORT_NAMES[comp]];
+                    ALLOWED_CATEGORIES.forEach(t => {
+                        const cnt = rawPetitions.filter(x=>x.complejo===comp && x.tipo===t).length + rawIncidents.filter(x=>x.complejo===comp && x.tipo===t).length;
+                        row.push(cnt);
+                    });
+                    tab2Data.push(row);
+                });
+                const ws2 = workbook.addWorksheet('Desglose Categorías');
+                ws2.addRow(['MATRIZ DESGLOSE CUENTAS POR CATEGORÍA']);
+                ws2.getRow(1).font = { size: 14, bold: true, color: { argb: '1F4E78' } };
+                ws2.addRow([]);
+                const h2 = ws2.addRow(['Complejo', ...ALLOWED_CATEGORIES]);
+                styleHeader(h2);
+                tab2Data.forEach(r => {
+                    const row = ws2.addRow(r);
+                    row.eachCell(cell => {
+                        cell.border = { top: {style:'thin', color:{argb:'D3D3D3'}}, left: {style:'thin', color:{argb:'D3D3D3'}}, bottom: {style:'thin', color:{argb:'D3D3D3'}}, right: {style:'thin', color:{argb:'D3D3D3'}} };
+                    });
+                });
+                ws2.columns.forEach(c => c.width = 16);
+
+                // 3. Peticiones - Tipo
+                let tab3Data = [];
+                const petCounts = {};
+                ALLOWED_CATEGORIES.forEach(c => petCounts[c] = 0);
+                rawPetitions.forEach(x => { if(petCounts[x.tipo] !== undefined) petCounts[x.tipo]++; });
+                Object.entries(petCounts).forEach(([t, cnt]) => {
+                    tab3Data.push([t, cnt, totalPet > 0 ? (cnt/totalPet) : 0]);
+                });
+                const ws3 = workbook.addWorksheet('Peticiones - Tipo');
+                ws3.addRow(['PETICIONES POR TIPO']);
+                ws3.getRow(1).font = { size: 14, bold: true, color: { argb: '1F4E78' } };
+                ws3.addRow([]);
+                const h3 = ws3.addRow(['Tipo', 'Cantidad', 'Porcentaje']);
+                styleHeader(h3);
+                tab3Data.forEach(r => {
+                    const row = ws3.addRow(r);
+                    row.getCell(3).numFmt = '0%';
+                    row.eachCell(cell => {
+                        cell.border = { top: {style:'thin', color:{argb:'D3D3D3'}}, left: {style:'thin', color:{argb:'D3D3D3'}}, bottom: {style:'thin', color:{argb:'D3D3D3'}}, right: {style:'thin', color:{argb:'D3D3D3'}} };
+                    });
+                });
+                ws3.columns.forEach(c => c.width = 20);
+
+                // 4. Peticiones - Complejo
+                let tab4Data = [];
+                COMPLEX_ORDER.forEach(comp => {
+                    const items = rawPetitions.filter(x => x.complejo === comp);
+                    const compTotal = items.length;
+                    ALLOWED_CATEGORIES.forEach(t => {
+                        const cnt = items.filter(x => x.tipo === t).length;
+                        if(cnt > 0) tab4Data.push([COMPLEX_SHORT_NAMES[comp], t, cnt, compTotal > 0 ? (cnt/compTotal) : 0]);
+                    });
+                });
+                const ws4 = workbook.addWorksheet('Peticiones - Complejo');
+                ws4.addRow(['PETICIONES DETALLADAS POR COMPLEJO']);
+                ws4.getRow(1).font = { size: 14, bold: true, color: { argb: '1F4E78' } };
+                ws4.addRow([]);
+                const h4 = ws4.addRow(['Complejo', 'Tipo', 'Cantidad', '% sobre Complejo']);
+                styleHeader(h4);
+                tab4Data.forEach(r => {
+                    const row = ws4.addRow(r);
+                    row.getCell(4).numFmt = '0%';
+                    row.eachCell(cell => {
+                        cell.border = { top: {style:'thin', color:{argb:'D3D3D3'}}, left: {style:'thin', color:{argb:'D3D3D3'}}, bottom: {style:'thin', color:{argb:'D3D3D3'}}, right: {style:'thin', color:{argb:'D3D3D3'}} };
+                    });
+                });
+                ws4.columns.forEach(c => c.width = 22);
+
+                // 5. Peticiones Total por Complejo
+                let tab5Data = COMPLEX_ORDER.map(c => [COMPLEX_SHORT_NAMES[c], rawPetitions.filter(x => x.complejo === c).length, totalPet > 0 ? (rawPetitions.filter(x => x.complejo === c).length/totalPet) : 0]);
+                const ws5 = workbook.addWorksheet('Peticiones Totales');
+                ws5.addRow(['PETICIONES TOTALES POR COMPLEJO']);
+                ws5.getRow(1).font = { size: 14, bold: true, color: { argb: '1F4E78' } };
+                ws5.addRow([]);
+                const h5 = ws5.addRow(['Complejo', 'Peticiones', 'Porcentaje']);
+                styleHeader(h5);
+                tab5Data.forEach(r => {
+                    const row = ws5.addRow(r);
+                    row.getCell(3).numFmt = '0%';
+                    row.eachCell(cell => {
+                        cell.border = { top: {style:'thin', color:{argb:'D3D3D3'}}, left: {style:'thin', color:{argb:'D3D3D3'}}, bottom: {style:'thin', color:{argb:'D3D3D3'}}, right: {style:'thin', color:{argb:'D3D3D3'}} };
+                    });
+                });
+                ws5.columns.forEach(c => c.width = 22);
+
+                // 6. Incidencias - Tipo
+                let tab6Data = [];
+                const incCounts = {};
+                ALLOWED_CATEGORIES.forEach(c => incCounts[c] = 0);
+                rawIncidents.forEach(x => { if(incCounts[x.tipo] !== undefined) incCounts[x.tipo]++; });
+                Object.entries(incCounts).forEach(([t, cnt]) => {
+                    tab6Data.push([t, cnt, totalInc > 0 ? (cnt/totalInc) : 0]);
+                });
+                const ws6 = workbook.addWorksheet('Incidencias - Tipo');
+                ws6.addRow(['INCIDENCIAS POR TIPO']);
+                ws6.getRow(1).font = { size: 14, bold: true, color: { argb: '1F4E78' } };
+                ws6.addRow([]);
+                const h6 = ws6.addRow(['Tipo', 'Cantidad', 'Porcentaje']);
+                styleHeader(h6);
+                tab6Data.forEach(r => {
+                    const row = ws6.addRow(r);
+                    row.getCell(3).numFmt = '0%';
+                    row.eachCell(cell => {
+                        cell.border = { top: {style:'thin', color:{argb:'D3D3D3'}}, left: {style:'thin', color:{argb:'D3D3D3'}}, bottom: {style:'thin', color:{argb:'D3D3D3'}}, right: {style:'thin', color:{argb:'D3D3D3'}} };
+                    });
+                });
+                ws6.columns.forEach(c => c.width = 20);
+
+                // 7. Incidencias - Complejo
+                let tab7Data = [];
+                COMPLEX_ORDER.forEach(comp => {
+                    const items = rawIncidents.filter(x => x.complejo === comp);
+                    const compTotal = items.length;
+                    ALLOWED_CATEGORIES.forEach(t => {
+                        const cnt = items.filter(x => x.tipo === t).length;
+                        if(cnt > 0) tab7Data.push([COMPLEX_SHORT_NAMES[comp], t, cnt, compTotal > 0 ? (cnt/compTotal) : 0]);
+                    });
+                });
+                const ws7 = workbook.addWorksheet('Incidencias - Complejo');
+                ws7.addRow(['INCIDENCIAS DETALLADAS POR COMPLEJO']);
+                ws7.getRow(1).font = { size: 14, bold: true, color: { argb: '1F4E78' } };
+                ws7.addRow([]);
+                const h7 = ws7.addRow(['Complejo', 'Tipo', 'Cantidad', '% sobre Complejo']);
+                styleHeader(h7);
+                tab7Data.forEach(r => {
+                    const row = ws7.addRow(r);
+                    row.getCell(4).numFmt = '0%';
+                    row.eachCell(cell => {
+                        cell.border = { top: {style:'thin', color:{argb:'D3D3D3'}}, left: {style:'thin', color:{argb:'D3D3D3'}}, bottom: {style:'thin', color:{argb:'D3D3D3'}}, right: {style:'thin', color:{argb:'D3D3D3'}} };
+                    });
+                });
+                ws7.columns.forEach(c => c.width = 22);
+
+                // 8. Incidencias Total por Complejo
+                let tab8Data = COMPLEX_ORDER.map(c => [COMPLEX_SHORT_NAMES[c], rawIncidents.filter(x => x.complejo === c).length, totalInc > 0 ? (rawIncidents.filter(x => x.complejo === c).length/totalInc) : 0]);
+                const ws8 = workbook.addWorksheet('Incidencias Totales');
+                ws8.addRow(['INCIDENCIAS TOTALES POR COMPLEJO']);
+                ws8.getRow(1).font = { size: 14, bold: true, color: { argb: '1F4E78' } };
+                ws8.addRow([]);
+                const h8 = ws8.addRow(['Complejo', 'Incidencias', 'Porcentaje']);
+                styleHeader(h8);
+                tab8Data.forEach(r => {
+                    const row = ws8.addRow(r);
+                    row.getCell(3).numFmt = '0%';
+                    row.eachCell(cell => {
+                        cell.border = { top: {style:'thin', color:{argb:'D3D3D3'}}, left: {style:'thin', color:{argb:'D3D3D3'}}, bottom: {style:'thin', color:{argb:'D3D3D3'}}, right: {style:'thin', color:{argb:'D3D3D3'}} };
+                    });
+                });
+                ws8.columns.forEach(c => c.width = 22);
+
+                // 9. Comparativa Global
+                let tab9Data = COMPLEX_ORDER.map(c => {
+                    const p = rawPetitions.filter(x => x.complejo === c).length;
+                    const i = rawIncidents.filter(x => x.complejo === c).length;
+                    return [COMPLEX_SHORT_NAMES[c], p, i, p + i];
+                });
+                const ws9 = workbook.addWorksheet('Comparativa Global');
+                ws9.addRow(['COMPARATIVA GLOBAL: PETICIONES VS INCIDENCIAS']);
+                ws9.getRow(1).font = { size: 14, bold: true, color: { argb: '1F4E78' } };
+                ws9.addRow([]);
+                const h9 = ws9.addRow(['Complejo', 'Peticiones', 'Incidencias', 'Total']);
+                styleHeader(h9);
+                tab9Data.forEach(r => {
+                    const row = ws9.addRow(r);
+                    row.eachCell(cell => {
+                        cell.border = { top: {style:'thin', color:{argb:'D3D3D3'}}, left: {style:'thin', color:{argb:'D3D3D3'}}, bottom: {style:'thin', color:{argb:'D3D3D3'}}, right: {style:'thin', color:{argb:'D3D3D3'}} };
+                    });
+                });
+                ws9.columns.forEach(c => c.width = 20);
+
+                // 10. Distribución % Peticiones
+                let tab10Data = [];
+                COMPLEX_ORDER.forEach(comp => {
+                    const items = rawPetitions.filter(x=>x.complejo===comp);
+                    const compTotal = items.length;
+                    let row = [COMPLEX_SHORT_NAMES[comp]];
+                    ALLOWED_CATEGORIES.forEach(t => {
+                        const cnt = items.filter(x=>x.tipo===t).length;
+                        row.push(compTotal > 0 ? (cnt/compTotal) : 0);
+                    });
+                    tab10Data.push(row);
+                });
+                const ws10 = workbook.addWorksheet('% Peticiones');
+                ws10.addRow(['DISTRIBUCIÓN PORCENTUAL DE PETICIONES']);
+                ws10.getRow(1).font = { size: 14, bold: true, color: { argb: '1F4E78' } };
+                ws10.addRow([]);
+                const h10 = ws10.addRow(['Complejo', ...ALLOWED_CATEGORIES]);
+                styleHeader(h10);
+                tab10Data.forEach(r => {
+                    const row = ws10.addRow(r);
+                    for(let i=2; i<=row.cellCount; i++) row.getCell(i).numFmt = '0%';
+                    row.eachCell(cell => {
+                        cell.border = { top: {style:'thin', color:{argb:'D3D3D3'}}, left: {style:'thin', color:{argb:'D3D3D3'}}, bottom: {style:'thin', color:{argb:'D3D3D3'}}, right: {style:'thin', color:{argb:'D3D3D3'}} };
+                    });
+                });
+                ws10.columns.forEach(c => c.width = 18);
+
+                // 11. Distribución % Incidencias
+                let tab11Data = [];
+                COMPLEX_ORDER.forEach(comp => {
+                    const items = rawIncidents.filter(x=>x.complejo===comp);
+                    const compTotal = items.length;
+                    let row = [COMPLEX_SHORT_NAMES[comp]];
+                    ALLOWED_CATEGORIES.forEach(t => {
+                        const cnt = items.filter(x=>x.tipo===t).length;
+                        row.push(compTotal > 0 ? (cnt/compTotal) : 0);
+                    });
+                    tab11Data.push(row);
+                });
+                const ws11 = workbook.addWorksheet('% Incidencias');
+                ws11.addRow(['DISTRIBUCIÓN PORCENTUAL DE INCIDENCIAS']);
+                ws11.getRow(1).font = { size: 14, bold: true, color: { argb: '1F4E78' } };
+                ws11.addRow([]);
+                const h11 = ws11.addRow(['Complejo', ...ALLOWED_CATEGORIES]);
+                styleHeader(h11);
+                tab11Data.forEach(r => {
+                    const row = ws11.addRow(r);
+                    for(let i=2; i<=row.cellCount; i++) row.getCell(i).numFmt = '0%';
+                    row.eachCell(cell => {
+                        cell.border = { top: {style:'thin', color:{argb:'D3D3D3'}}, left: {style:'thin', color:{argb:'D3D3D3'}}, bottom: {style:'thin', color:{argb:'D3D3D3'}}, right: {style:'thin', color:{argb:'D3D3D3'}} };
+                    });
+                });
+                ws11.columns.forEach(c => c.width = 18);
+
+                // Descargar Archivo
+                const buffer = await workbook.xlsx.writeBuffer();
+                saveAs(new Blob([buffer]), 'Dashboard_ITSM_Todas_Las_Tablas.xlsx');
+            } catch (error) {
+                console.error("Error al exportar:", error);
+                alert("Ocurrió un error al generar el archivo Excel.");
+            }
+        }
+    </script>
+</body>
+</html>
