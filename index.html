@@ -1,6 +1,3 @@
-### Código Completo Actualizado (`index.html`)
-
-```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -38,6 +35,12 @@
             width: 100%;
             height: 320px;
             max-height: 380px;
+        }
+        table.copyable-table th, table.copyable-table td {
+            user-select: text;
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
         }
         @media (min-width: 768px) {
             .chart-container { height: 400px; }
@@ -94,7 +97,7 @@
             </button>
         </section>
 
-        <!-- GESTOR VISUAL DE ARCHIVOS EN MEMORIA (AMPLIADO Y 2 COLUMNAS) -->
+        <!-- GESTOR VISUAL DE ARCHIVOS EN MEMORIA -->
         <section class="bg-white p-4 md:p-5 rounded-2xl shadow-sm mb-6 border border-gray-200">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3 border-b pb-2.5">
                 <h3 class="font-bold text-gray-800 text-sm md:text-base flex items-center gap-2">
@@ -110,7 +113,6 @@
                     <h4 class="font-bold text-blue-900 text-xs md:text-sm mb-2 flex items-center gap-2">
                         <i class="fa-solid fa-file-lines"></i> Peticiones (<span id="countPet">0</span>)
                     </h4>
-                    <!-- Contenedor adaptativo en 2 columnas que muestra todos los meses sin límite estricto de altura -->
                     <div id="listPetFiles" class="grid grid-cols-1 sm:grid-cols-2 gap-1.5"></div>
                 </div>
 
@@ -118,7 +120,6 @@
                     <h4 class="font-bold text-red-900 text-xs md:text-sm mb-2 flex items-center gap-2">
                         <i class="fa-solid fa-triangle-exclamation"></i> Incidencias (<span id="countInc">0</span>)
                     </h4>
-                    <!-- Contenedor adaptativo en 2 columnas que muestra todos los meses sin límite estricto de altura -->
                     <div id="listIncFiles" class="grid grid-cols-1 sm:grid-cols-2 gap-1.5"></div>
                 </div>
             </div>
@@ -170,9 +171,17 @@
 
         <!-- CONTENIDOS -->
         <div class="bg-white p-4 md:p-6 rounded-b-xl shadow-md min-h-[400px]">
+            <!-- TAB 1 -->
             <div id="content-tab1" class="tab-pane">
-                <h3 id="title-tab1" class="text-base md:text-xl font-bold mb-2 text-[#1F4E78]">Resumen por Complejo</h3>
-                <p class="text-xs text-gray-500 mb-4"><i class="fa-solid fa-circle-info text-blue-600"></i> Haz clic en cualquier tarjeta de complejo para ver sus peticiones e incidencias detalladas por categoría y descargarlo en Excel con formato.</p>
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-2">
+                    <h3 id="title-tab1" class="text-base md:text-xl font-bold text-[#1F4E78]">Resumen por Complejo</h3>
+                    <div class="flex gap-2">
+                        <button onclick="copyTableToClipboard('tblTab1', 'Resumen por Complejos')" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3.5 py-2 rounded-lg text-xs shadow transition flex items-center gap-2">
+                            <i class="fa-solid fa-copy"></i> Copiar Tabla para Excel
+                        </button>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-500 mb-4"><i class="fa-solid fa-circle-info text-blue-600"></i> Puedes seleccionar celdas y copiar directamente de la tabla inferior o usar el botón superior. También haz clic en cualquier tarjeta para ver el desglose.</p>
                 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                     <div class="bg-blue-50 border-2 border-blue-200 p-4 rounded-2xl shadow-xs flex items-center justify-between">
@@ -200,22 +209,86 @@
 
                 <div id="cardsTab1" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6"></div>
 
+                <div class="mb-6 overflow-x-auto bg-gray-50 p-3 rounded-xl border">
+                    <h4 class="font-bold text-xs text-gray-700 mb-2">Tabla de Datos Directa (Seleccionable para Excel):</h4>
+                    <table id="tblTab1" class="w-full border-collapse border text-xs md:text-sm copyable-table bg-white">
+                        <thead><tr class="bg-[#1F4E78] text-white"><th class="p-2 border">Complejo Industrial</th><th class="p-2 border text-right">Peticiones</th><th class="p-2 border text-right">Incidencias</th><th class="p-2 border text-right">Total Intervenciones</th><th class="p-2 border text-right">% Global</th></tr></thead>
+                        <tbody id="tableTab1"></tbody>
+                    </table>
+                </div>
+
                 <div class="mt-8 border-t pt-6">
                     <div class="flex justify-between items-center mb-2"><h4 class="font-bold text-[#1F4E78] text-xs md:text-sm">Total Global Intervenciones</h4></div>
                     <div class="chart-container bg-gray-50 p-2 md:p-4 rounded-xl border"><canvas id="chartTab1"></canvas></div>
                 </div>
             </div>
 
-            <div id="content-tab2" class="tab-pane hidden"><h3 id="title-tab2" class="text-base md:text-xl font-bold mb-4 text-[#1F4E78]">Desglose Categorías</h3><div class="overflow-x-auto mb-4"><table id="tblTab2" class="w-full border-collapse border text-xs md:text-sm"><thead id="headTab2"></thead><tbody id="tableTab2"></tbody></table></div><div class="chart-container bg-gray-50 p-2 md:p-4 rounded-xl border"><canvas id="chartTab2"></canvas></div></div>
-            <div id="content-tab3" class="tab-pane hidden"><h3 id="title-tab3" class="text-base md:text-xl font-bold mb-4 text-[#1F4E78]">Peticiones por Tipo</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center"><div class="chart-container"><canvas id="chartTab3"></canvas></div><div class="overflow-x-auto"><table id="tblTab3" class="w-full border-collapse border text-xs md:text-sm"><thead><tr class="bg-[#1F4E78] text-white"><th class="p-2 border">Tipo</th><th class="p-2 border text-right">Cant.</th><th class="p-2 border text-right">%</th></tr></thead><tbody id="tableTab3"></tbody></table></div></div></div>
-            <div id="content-tab4" class="tab-pane hidden"><h3 id="title-tab4" class="text-base md:text-xl font-bold mb-4 text-[#1F4E78]">Peticiones - Complejo</h3><div class="overflow-x-auto mb-4"><table id="tblTab4" class="w-full border-collapse border text-xs md:text-sm"><thead><tr class="bg-[#1F4E78] text-white"><th class="p-2 border">Complejo</th><th class="p-2 border">Tipo</th><th class="p-2 border text-right">Cant.</th><th class="p-2 border text-right">%</th></tr></thead><tbody id="tableTab4"></tbody></table></div><div class="chart-container bg-gray-50 p-2 md:p-4 rounded-xl border"><canvas id="chartTab4"></canvas></div></div>
-            <div id="content-tab5" class="tab-pane hidden"><h3 id="title-tab5" class="text-base md:text-xl font-bold mb-4 text-[#1F4E78]">Peticiones Total Complejo</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center"><div class="chart-container"><canvas id="chartTab5"></canvas></div><div class="overflow-x-auto"><table id="tblTab5" class="w-full border-collapse border text-xs md:text-sm"><thead><tr class="bg-[#1F4E78] text-white"><th class="p-2 border">Complejo</th><th class="p-2 border text-right">Pet.</th><th class="p-2 border text-right">%</th></tr></thead><tbody id="tableTab5"></tbody></table></div></div></div>
-            <div id="content-tab6" class="tab-pane hidden"><h3 id="title-tab6" class="text-base md:text-xl font-bold mb-4 text-[#1F4E78]">Incidencias - Tipo</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center"><div class="chart-container"><canvas id="chartTab6"></canvas></div><div class="overflow-x-auto"><table id="tblTab6" class="w-full border-collapse border text-xs md:text-sm"><thead><tr class="bg-[#1F4E78] text-white"><th class="p-2 border">Tipo</th><th class="p-2 border text-right">Cant.</th><th class="p-2 border text-right">%</th></tr></thead><tbody id="tableTab6"></tbody></table></div></div></div>
-            <div id="content-tab7" class="tab-pane hidden"><h3 id="title-tab7" class="text-base md:text-xl font-bold mb-4 text-[#1F4E78]">Incidencias - Complejo</h3><div class="overflow-x-auto mb-4"><table id="tblTab7" class="w-full border-collapse border text-xs md:text-sm"><thead><tr class="bg-[#1F4E78] text-white"><th class="p-2 border">Complejo</th><th class="p-2 border">Tipo</th><th class="p-2 border text-right">Cant.</th><th class="p-2 border text-right">%</th></tr></thead><tbody id="tableTab7"></tbody></table></div><div class="chart-container bg-gray-50 p-2 md:p-4 rounded-xl border"><canvas id="chartTab7"></canvas></div></div>
-            <div id="content-tab8" class="tab-pane hidden"><h3 id="title-tab8" class="text-base md:text-xl font-bold mb-4 text-[#1F4E78]">Incidencias Total Complejo</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center"><div class="chart-container"><canvas id="chartTab8"></canvas></div><div class="overflow-x-auto"><table id="tblTab8" class="w-full border-collapse border text-xs md:text-sm"><thead><tr class="bg-[#1F4E78] text-white"><th class="p-2 border">Complejo</th><th class="p-2 border text-right">Inc.</th><th class="p-2 border text-right">%</th></tr></thead><tbody id="tableTab8"></tbody></table></div></div></div>
-            <div id="content-tab9" class="tab-pane hidden"><h3 id="title-tab9" class="text-base md:text-xl font-bold mb-4 text-[#1F4E78]">Comparativa Global</h3><div class="overflow-x-auto mb-4"><table id="tblTab9" class="w-full border-collapse border text-xs md:text-sm"><thead><tr class="bg-[#1F4E78] text-white"><th class="p-2 border">Complejo</th><th class="p-2 border text-right">Pet.</th><th class="p-2 border text-right">Inc.</th><th class="p-2 border text-right">Total</th></tr></thead><tbody id="tableTab9"></tbody></table></div><div class="chart-container"><canvas id="chartTab9"></canvas></div></div>
-            <div id="content-tab10" class="tab-pane hidden"><h3 id="title-tab10" class="text-base md:text-xl font-bold mb-4 text-[#1F4E78]">Distribución % Peticiones</h3><div class="overflow-x-auto mb-4"><table id="tblTab10" class="w-full border-collapse border text-xs md:text-sm"><thead id="headTab10"></thead><tbody id="tableTab10"></tbody></table></div><div class="chart-container bg-gray-50 p-2 md:p-4 rounded-xl border"><canvas id="chartTab10"></canvas></div></div>
-            <div id="content-tab11" class="tab-pane hidden"><h3 id="title-tab11" class="text-base md:text-xl font-bold mb-4 text-[#1F4E78]">Distribución % Incidencias</h3><div class="overflow-x-auto mb-4"><table id="tblTab11" class="w-full border-collapse border text-xs md:text-sm"><thead id="headTab11"></thead><tbody id="tableTab11"></tbody></table></div><div class="chart-container bg-gray-50 p-2 md:p-4 rounded-xl border"><canvas id="chartTab11"></canvas></div></div>
+            <!-- TAB 2 -->
+            <div id="content-tab2" class="tab-pane hidden">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                    <h3 id="title-tab2" class="text-base md:text-xl font-bold text-[#1F4E78]">Desglose Categorías</h3>
+                    <div class="flex gap-2">
+                        <button onclick="copyTableToClipboard('tblTab2', 'Desglose Categorias')" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3.5 py-2 rounded-lg text-xs shadow transition flex items-center gap-2">
+                            <i class="fa-solid fa-copy"></i> Copiar Tabla para Excel
+                        </button>
+                        <button onclick="exportTableElement('tblTab2', 'Desglose_Categorias')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3.5 py-2 rounded-lg text-xs shadow transition flex items-center gap-2">
+                            <i class="fa-solid fa-file-excel"></i> Descargar Excel
+                        </button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto mb-4">
+                    <table id="tblTab2" class="w-full border-collapse border text-xs md:text-sm copyable-table bg-white">
+                        <thead id="headTab2"></thead>
+                        <tbody id="tableTab2"></tbody>
+                    </table>
+                </div>
+                <div class="chart-container bg-gray-50 p-2 md:p-4 rounded-xl border"><canvas id="chartTab2"></canvas></div>
+            </div>
+
+            <div id="content-tab3" class="tab-pane hidden">
+                <div class="flex justify-between items-center mb-4"><h3 id="title-tab3" class="text-base md:text-xl font-bold text-[#1F4E78]">Peticiones por Tipo</h3><div class="flex gap-2"><button onclick="copyTableToClipboard('tblTab3', 'Peticiones Tipo')" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs shadow transition flex items-center gap-1.5"><i class="fa-solid fa-copy"></i> Copiar</button><button onclick="exportTableElement('tblTab3', 'Peticiones_Tipo')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs shadow transition flex items-center gap-1.5"><i class="fa-solid fa-file-excel"></i> Excel</button></div></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center"><div class="chart-container"><canvas id="chartTab3"></canvas></div><div class="overflow-x-auto"><table id="tblTab3" class="w-full border-collapse border text-xs md:text-sm copyable-table"><thead><tr class="bg-[#1F4E78] text-white"><th class="p-2 border">Tipo</th><th class="p-2 border text-right">Cant.</th><th class="p-2 border text-right">%</th></tr></thead><tbody id="tableTab3"></tbody></table></div></div>
+            </div>
+
+            <div id="content-tab4" class="tab-pane hidden">
+                <div class="flex justify-between items-center mb-4"><h3 id="title-tab4" class="text-base md:text-xl font-bold text-[#1F4E78]">Peticiones - Complejo</h3><div class="flex gap-2"><button onclick="copyTableToClipboard('tblTab4', 'Peticiones Complejo')" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs shadow transition flex items-center gap-1.5"><i class="fa-solid fa-copy"></i> Copiar</button><button onclick="exportTableElement('tblTab4', 'Peticiones_Complejo')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs shadow transition flex items-center gap-1.5"><i class="fa-solid fa-file-excel"></i> Excel</button></div></div>
+                <div class="overflow-x-auto mb-4"><table id="tblTab4" class="w-full border-collapse border text-xs md:text-sm copyable-table"><thead><tr class="bg-[#1F4E78] text-white"><th class="p-2 border">Complejo</th><th class="p-2 border">Tipo</th><th class="p-2 border text-right">Cant.</th><th class="p-2 border text-right">%</th></tr></thead><tbody id="tableTab4"></tbody></table></div><div class="chart-container bg-gray-50 p-2 md:p-4 rounded-xl border"><canvas id="chartTab4"></canvas></div>
+            </div>
+
+            <div id="content-tab5" class="tab-pane hidden">
+                <div class="flex justify-between items-center mb-4"><h3 id="title-tab5" class="text-base md:text-xl font-bold text-[#1F4E78]">Peticiones Total Complejo</h3><div class="flex gap-2"><button onclick="copyTableToClipboard('tblTab5', 'Peticiones Total Complejo')" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs shadow transition flex items-center gap-1.5"><i class="fa-solid fa-copy"></i> Copiar</button><button onclick="exportTableElement('tblTab5', 'Peticiones_Total_Complejo')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs shadow transition flex items-center gap-1.5"><i class="fa-solid fa-file-excel"></i> Excel</button></div></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center"><div class="chart-container"><canvas id="chartTab5"></canvas></div><div class="overflow-x-auto"><table id="tblTab5" class="w-full border-collapse border text-xs md:text-sm copyable-table"><thead><tr class="bg-[#1F4E78] text-white"><th class="p-2 border">Complejo</th><th class="p-2 border text-right">Pet.</th><th class="p-2 border text-right">%</th></tr></thead><tbody id="tableTab5"></tbody></table></div></div>
+            </div>
+
+            <div id="content-tab6" class="tab-pane hidden">
+                <div class="flex justify-between items-center mb-4"><h3 id="title-tab6" class="text-base md:text-xl font-bold text-[#1F4E78]">Incidencias - Tipo</h3><div class="flex gap-2"><button onclick="copyTableToClipboard('tblTab6', 'Incidencias Tipo')" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs shadow transition flex items-center gap-1.5"><i class="fa-solid fa-copy"></i> Copiar</button><button onclick="exportTableElement('tblTab6', 'Incidencias_Tipo')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs shadow transition flex items-center gap-1.5"><i class="fa-solid fa-file-excel"></i> Excel</button></div></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center"><div class="chart-container"><canvas id="chartTab6"></canvas></div><div class="overflow-x-auto"><table id="tblTab6" class="w-full border-collapse border text-xs md:text-sm copyable-table"><thead><tr class="bg-[#1F4E78] text-white"><th class="p-2 border">Tipo</th><th class="p-2 border text-right">Cant.</th><th class="p-2 border text-right">%</th></tr></thead><tbody id="tableTab6"></tbody></table></div></div>
+            </div>
+
+            <div id="content-tab7" class="tab-pane hidden">
+                <div class="flex justify-between items-center mb-4"><h3 id="title-tab7" class="text-base md:text-xl font-bold text-[#1F4E78]">Incidencias - Complejo</h3><div class="flex gap-2"><button onclick="copyTableToClipboard('tblTab7', 'Incidencias Complejo')" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs shadow transition flex items-center gap-1.5"><i class="fa-solid fa-copy"></i> Copiar</button><button onclick="exportTableElement('tblTab7', 'Incidencias_Complejo')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs shadow transition flex items-center gap-1.5"><i class="fa-solid fa-file-excel"></i> Excel</button></div></div>
+                <div class="overflow-x-auto mb-4"><table id="tblTab7" class="w-full border-collapse border text-xs md:text-sm copyable-table"><thead><tr class="bg-[#1F4E78] text-white"><th class="p-2 border">Complejo</th><th class="p-2 border">Tipo</th><th class="p-2 border text-right">Cant.</th><th class="p-2 border text-right">%</th></tr></thead><tbody id="tableTab7"></tbody></table></div><div class="chart-container bg-gray-50 p-2 md:p-4 rounded-xl border"><canvas id="chartTab7"></canvas></div>
+            </div>
+
+            <div id="content-tab8" class="tab-pane hidden">
+                <div class="flex justify-between items-center mb-4"><h3 id="title-tab8" class="text-base md:text-xl font-bold text-[#1F4E78]">Incidencias Total Complejo</h3><div class="flex gap-2"><button onclick="copyTableToClipboard('tblTab8', 'Incidencias Total Complejo')" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs shadow transition flex items-center gap-1.5"><i class="fa-solid fa-copy"></i> Copiar</button><button onclick="exportTableElement('tblTab8', 'Incidencias_Total_Complejo')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs shadow transition flex items-center gap-1.5"><i class="fa-solid fa-file-excel"></i> Excel</button></div></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center"><div class="chart-container"><canvas id="chartTab8"></canvas></div><div class="overflow-x-auto"><table id="tblTab8" class="w-full border-collapse border text-xs md:text-sm copyable-table"><thead><tr class="bg-[#1F4E78] text-white"><th class="p-2 border">Complejo</th><th class="p-2 border text-right">Inc.</th><th class="p-2 border text-right">%</th></tr></thead><tbody id="tableTab8"></tbody></table></div></div>
+            </div>
+
+            <div id="content-tab9" class="tab-pane hidden">
+                <div class="flex justify-between items-center mb-4"><h3 id="title-tab9" class="text-base md:text-xl font-bold text-[#1F4E78]">Comparativa Global</h3><div class="flex gap-2"><button onclick="copyTableToClipboard('tblTab9', 'Comparativa Global')" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs shadow transition flex items-center gap-1.5"><i class="fa-solid fa-copy"></i> Copiar</button><button onclick="exportTableElement('tblTab9', 'Comparativa_Global')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs shadow transition flex items-center gap-1.5"><i class="fa-solid fa-file-excel"></i> Excel</button></div></div>
+                <div class="overflow-x-auto mb-4"><table id="tblTab9" class="w-full border-collapse border text-xs md:text-sm copyable-table"><thead><tr class="bg-[#1F4E78] text-white"><th class="p-2 border">Complejo</th><th class="p-2 border text-right">Pet.</th><th class="p-2 border text-right">Inc.</th><th class="p-2 border text-right">Total</th></tr></thead><tbody id="tableTab9"></tbody></table></div><div class="chart-container"><canvas id="chartTab9"></canvas></div>
+            </div>
+
+            <div id="content-tab10" class="tab-pane hidden">
+                <div class="flex justify-between items-center mb-4"><h3 id="title-tab10" class="text-base md:text-xl font-bold text-[#1F4E78]">Distribución % Peticiones</h3><div class="flex gap-2"><button onclick="copyTableToClipboard('tblTab10', 'Pct Peticiones')" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs shadow transition flex items-center gap-1.5"><i class="fa-solid fa-copy"></i> Copiar</button><button onclick="exportTableElement('tblTab10', 'Pct_Peticiones')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs shadow transition flex items-center gap-1.5"><i class="fa-solid fa-file-excel"></i> Excel</button></div></div>
+                <div class="overflow-x-auto mb-4"><table id="tblTab10" class="w-full border-collapse border text-xs md:text-sm copyable-table"><thead id="headTab10"></thead><tbody id="tableTab10"></tbody></table></div><div class="chart-container bg-gray-50 p-2 md:p-4 rounded-xl border"><canvas id="chartTab10"></canvas></div>
+            </div>
+
+            <div id="content-tab11" class="tab-pane hidden">
+                <div class="flex justify-between items-center mb-4"><h3 id="title-tab11" class="text-base md:text-xl font-bold text-[#1F4E78]">Distribución % Incidencias</h3><div class="flex gap-2"><button onclick="copyTableToClipboard('tblTab11', 'Pct Incidencias')" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs shadow transition flex items-center gap-1.5"><i class="fa-solid fa-copy"></i> Copiar</button><button onclick="exportTableElement('tblTab11', 'Pct_Incidencias')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs shadow transition flex items-center gap-1.5"><i class="fa-solid fa-file-excel"></i> Excel</button></div></div>
+                <div class="overflow-x-auto mb-4"><table id="tblTab11" class="w-full border-collapse border text-xs md:text-sm copyable-table"><thead id="headTab11"></thead><tbody id="tableTab11"></tbody></table></div><div class="chart-container bg-gray-50 p-2 md:p-4 rounded-xl border"><canvas id="chartTab11"></canvas></div>
+            </div>
         </div>
     </main>
 
@@ -318,13 +391,13 @@
                         <h4 class="font-bold text-blue-900 text-xs md:text-sm mb-2 flex items-center gap-1.5">
                             <i class="fa-solid fa-file-lines"></i> Peticiones por Tipo (<span id="modalPetTypeCount">0</span>)
                         </h4>
-                        <div id="modalPetTypeList" class="space-y-1.5 max-h-48 overflow-y-auto pr-1 text-xs"></div>
+                        <div id="modalPetTypeList" class="max-h-48 overflow-y-auto pr-1 text-xs"></div>
                     </div>
                     <div class="bg-red-50/50 p-3 rounded-xl border border-red-200">
                         <h4 class="font-bold text-red-900 text-xs md:text-sm mb-2 flex items-center gap-1.5">
                             <i class="fa-solid fa-triangle-exclamation"></i> Incidencias por Tipo (<span id="modalIncTypeCount">0</span>)
                         </h4>
-                        <div id="modalIncTypeList" class="space-y-1.5 max-h-48 overflow-y-auto pr-1 text-xs"></div>
+                        <div id="modalIncTypeList" class="max-h-48 overflow-y-auto pr-1 text-xs"></div>
                     </div>
                 </div>
             </div>
@@ -443,35 +516,6 @@
             const file = event.target.files[0];
             if (!file) return;
 
-            const fileNameLower = file.name.trim().toLowerCase();
-            const selectedMonth = document.getElementById('modalInputMonth').value;
-
-            if (type === 'pet' && !fileNameLower.startsWith('peticiones')) {
-                alert(`Error: El archivo "${file.name}" debe empezar por "peticiones".`);
-                event.target.value = ''; return;
-            }
-            if (type === 'inc' && !fileNameLower.startsWith('incidencias')) {
-                alert(`Error: El archivo "${file.name}" debe empezar por "incidencias".`);
-                event.target.value = ''; return;
-            }
-
-            if (selectedMonth) {
-                const [sYear, sMonth] = selectedMonth.split('-');
-                const monthNames = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
-                const sMonthName = monthNames[parseInt(sMonth, 10) - 1];
-
-                const matchFound = fileNameLower.includes(selectedMonth) || 
-                                   fileNameLower.includes(sYear + sMonth) || 
-                                   fileNameLower.includes(sMonth) || 
-                                   (sMonthName && fileNameLower.includes(sMonthName));
-
-                if (!matchFound) {
-                    alert(`⚠️ Error de coincidencia:\nEl archivo "${file.name}" no corresponde al mes seleccionado (${selectedMonth}).\nPor favor, seleccione el archivo correcto para evitar errores.`);
-                    event.target.value = '';
-                    return;
-                }
-            }
-
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
@@ -490,8 +534,9 @@
                     const keys = Object.keys(sample);
                     const cleanKeys = keys.map(k => ({ original: k, clean: k.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase() }));
 
-                    const groupObj = cleanKeys.find(k => k.clean.includes("grupo") && k.clean.includes("asignacion")) || cleanKeys[0];
-                    const typeObj = cleanKeys.find(k => k.clean === "tipo" || k.clean.includes("tipo")) || cleanKeys[1];
+                    const groupObj = cleanKeys.find(k => k.clean.includes("grupo") || k.clean.includes("asignacion") || k.clean.includes("complejo")) || cleanKeys[0];
+                    const typeObj = cleanKeys.find(k => k.clean === "tipo" || k.clean.includes("tipo") || k.clean.includes("categoria")) || cleanKeys[1];
+                    
                     const groupCol = groupObj ? groupObj.original : keys[0];
                     const typeCol = typeObj ? typeObj.original : (keys[1] || keys[0]);
 
@@ -521,11 +566,11 @@
 
                     if (type === 'pet') {
                         modalParsedPet = processed;
-                        document.getElementById('modalStatusPet').innerText = `✓ ${file.name} (${processed.length} regs)`;
+                        document.getElementById('modalStatusPet').innerText = `✓ ${file.name} (${processed.length} registros válidos)`;
                         document.getElementById('modalStatusPet').className = "text-[11px] text-emerald-700 mt-1 font-bold truncate";
                     } else {
                         modalParsedInc = processed;
-                        document.getElementById('modalStatusInc').innerText = `✓ ${file.name} (${processed.length} regs)`;
+                        document.getElementById('modalStatusInc').innerText = `✓ ${file.name} (${processed.length} registros válidos)`;
                         document.getElementById('modalStatusInc').className = "text-[11px] text-emerald-700 mt-1 font-bold truncate";
                     }
                 } catch (err) {
@@ -777,7 +822,9 @@
 
         function renderTab1(pet, inc) {
             const container = document.getElementById('cardsTab1');
+            const tbody = document.getElementById('tableTab1');
             container.innerHTML = '';
+            tbody.innerHTML = '';
 
             const grandTotal = pet.length + inc.length;
             let barLabels = [], barTotals = [];
@@ -805,6 +852,16 @@
                             <div class="text-xs text-gray-500 mt-1">Peticiones: <span class="font-semibold text-blue-900">${p}</span> | Incidencias: <span class="font-semibold text-red-900">${i}</span></div>
                         </div>
                     </div>
+                `;
+
+                tbody.innerHTML += `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-2 font-semibold text-gray-800">${sName}</td>
+                        <td class="p-2 text-right text-blue-900">${p}</td>
+                        <td class="p-2 text-right text-red-900">${i}</td>
+                        <td class="p-2 text-right font-bold text-gray-900">${tot}</td>
+                        <td class="p-2 text-right text-gray-600">${pct}%</td>
+                    </tr>
                 `;
             });
 
@@ -849,35 +906,43 @@
             document.getElementById('modalPetTypeCount').innerText = targetPet.length;
             document.getElementById('modalIncTypeCount').innerText = targetInc.length;
 
+            // --- TABLA DE PETICIONES POR TIPO (ESTRUCTURA DE CELDAS PARA SEPARAR COLUMNAS AL COPIAR Y PEGAR) ---
             let petCounts = {}; ALLOWED_CATEGORIES.forEach(c => petCounts[c] = 0);
             targetPet.forEach(x => { if(petCounts[x.tipo] !== undefined) petCounts[x.tipo]++; });
             
             const sortedPet = Object.entries(petCounts).sort((a,b) => b[1] - a[1]);
             const petListContainer = document.getElementById('modalPetTypeList');
-            petListContainer.innerHTML = '';
+            
+            let petTableHtml = `<table class="w-full border-collapse copyable-table text-xs"><tbody>`;
             sortedPet.forEach(([cat, cnt]) => {
-                petListContainer.innerHTML += `
-                    <div class="bg-white p-2 rounded-lg border border-blue-100 flex justify-between items-center shadow-xs">
-                        <span class="text-gray-700 font-medium">${cat}</span>
-                        <span class="font-bold text-blue-900">${cnt}</span>
-                    </div>
+                petTableHtml += `
+                    <tr class="border-b border-blue-100 hover:bg-blue-100/50">
+                        <td class="p-2 text-gray-700 font-medium">${cat}</td>
+                        <td class="p-2 text-right font-bold text-blue-900">${cnt}</td>
+                    </tr>
                 `;
             });
+            petTableHtml += `</tbody></table>`;
+            petListContainer.innerHTML = petTableHtml;
 
+            // --- TABLA DE INCIDENCIAS POR TIPO (ESTRUCTURA DE CELDAS PARA SEPARAR COLUMNAS AL COPIAR Y PEGAR) ---
             let incCounts = {}; ALLOWED_CATEGORIES.forEach(c => incCounts[c] = 0);
             targetInc.forEach(x => { if(incCounts[x.tipo] !== undefined) incCounts[x.tipo]++; });
 
             const sortedInc = Object.entries(incCounts).sort((a,b) => b[1] - a[1]);
             const incListContainer = document.getElementById('modalIncTypeList');
-            incListContainer.innerHTML = '';
+            
+            let incTableHtml = `<table class="w-full border-collapse copyable-table text-xs"><tbody>`;
             sortedInc.forEach(([cat, cnt]) => {
-                incListContainer.innerHTML += `
-                    <div class="bg-white p-2 rounded-lg border border-red-100 flex justify-between items-center shadow-xs">
-                        <span class="text-gray-700 font-medium">${cat}</span>
-                        <span class="font-bold text-red-900">${cnt}</span>
-                    </div>
+                incTableHtml += `
+                    <tr class="border-b border-red-100 hover:bg-red-100/50">
+                        <td class="p-2 text-gray-700 font-medium">${cat}</td>
+                        <td class="p-2 text-right font-bold text-red-900">${cnt}</td>
+                    </tr>
                 `;
             });
+            incTableHtml += `</tbody></table>`;
+            incListContainer.innerHTML = incTableHtml;
         }
 
         async function exportModalToExcel() {
@@ -953,24 +1018,120 @@
             alert(`¡Excel de ${shortName} exportado con éxito!`);
         }
 
+        function copyTableToClipboard(tableId, tableName) {
+            const table = document.getElementById(tableId);
+            if (!table) return alert("No se encontró la tabla.");
+
+            let textContent = "";
+            const rows = table.querySelectorAll('tr');
+            rows.forEach(tr => {
+                const cols = tr.querySelectorAll('th, td');
+                let rowData = [];
+                cols.forEach(col => rowData.push(col.innerText.trim()));
+                textContent += rowData.join("\t") + "\n";
+            });
+
+            navigator.clipboard.writeText(textContent).then(() => {
+                alert(`¡Tabla "${tableName}" copiada al portapapeles!\nYa puedes ir a tu Excel, colocarte en la celda de destino y presionar Ctrl + V.`);
+            }).catch(err => {
+                console.error("Error al copiar al portapapeles: ", err);
+                alert("No se pudo copiar automáticamente. Puedes seleccionar las celdas de la tabla con el ratón y presionar Ctrl + C.");
+            });
+        }
+
+        async function exportTableElement(tableId, filenamePrefix) {
+            try {
+                const table = document.getElementById(tableId);
+                if (!table) return alert("No se encontró la tabla para exportar.");
+
+                const workbook = new ExcelJS.Workbook();
+                const ws = workbook.addWorksheet('Informe ITSM');
+
+                const activeLabelText = currentMode === 'monthly' 
+                    ? `Mes: ${document.getElementById('activeMonthLabel').innerText}` 
+                    : `Período: ${document.getElementById('activeAnnualRangeLabel').innerText}`;
+
+                ws.addRow([`INFORME ITSM - CONSOLIDADO`]).font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+                ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '1F4E78' } };
+                ws.addRow([activeLabelText]).font = { italic: true, size: 11 };
+                ws.addRow();
+
+                const rows = table.querySelectorAll('tr');
+                rows.forEach((tr, rowIndex) => {
+                    const cols = tr.querySelectorAll('th, td');
+                    let rowData = [];
+                    cols.forEach(col => rowData.push(col.innerText.trim()));
+
+                    const r = ws.addRow(rowData);
+                    
+                    if (rowIndex === 0 || tr.parentElement.tagName === 'THEAD') {
+                        r.font = { bold: true, color: { argb: 'FFFFFF' } };
+                        r.eachCell(cell => {
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '2F5597' } };
+                            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                            cell.border = { top: {style:'thin'}, bottom:{style:'thin'}, left:{style:'thin'}, right:{style:'thin'} };
+                        });
+                    } else {
+                        r.eachCell((cell, colIdx) => {
+                            cell.alignment = { horizontal: colIdx === 1 ? 'left' : 'right', vertical: 'middle' };
+                            cell.border = { top: {style:'thin'}, bottom:{style:'thin'}, left:{style:'thin'}, right:{style:'thin'} };
+                        });
+                    }
+                });
+
+                ws.columns.forEach(col => { col.width = 20; });
+
+                const buffer = await workbook.xlsx.writeBuffer();
+                saveAs(new Blob([buffer]), `${filenamePrefix}_${currentMode}.xlsx`);
+                alert("¡Tabla exportada a Excel con éxito!");
+            } catch (err) {
+                console.error("Error al exportar tabla:", err);
+                alert("Ocurrió un error al generar el archivo Excel.");
+            }
+        }
+
         function renderTab2(pet, inc) {
             const head = document.getElementById('headTab2');
             const tbody = document.getElementById('tableTab2');
-            head.innerHTML = `<tr class="bg-[#1F4E78] text-white"><th class="p-2 border">Complejo</th>` + ALLOWED_CATEGORIES.map(t=>`<th class="p-2 border text-right">${t}</th>`).join('') + `<th class="p-2 border text-right">TOTAL</th></tr>`;
-            tbody.innerHTML = '';
-            let catSums = {}; ALLOWED_CATEGORIES.forEach(t=>catSums[t]=0);
 
-            COMPLEX_ORDER.forEach(comp => {
-                let row = `<tr class="border-b"><td class="p-2 font-semibold">${COMPLEX_SHORT_NAMES[comp]}</td>`;
-                let rSum = 0;
-                ALLOWED_CATEGORIES.forEach(t => {
-                    const cnt = pet.filter(x=>x.complejo===comp && x.tipo===t).length + inc.filter(x=>x.complejo===comp && x.tipo===t).length;
-                    rSum += cnt; catSums[t] += cnt;
-                    row += `<td class="p-2 text-right">${cnt}</td>`;
+            head.innerHTML = `<tr class="bg-[#1F4E78] text-white">
+                <th class="p-2 border text-left">Categoría / Tipo</th>` + 
+                COMPLEX_ORDER.map(c => `<th class="p-2 border text-right">${COMPLEX_SHORT_NAMES[c]}</th>`).join('') + 
+                `<th class="p-2 border text-right font-bold bg-[#173A59]">TOTAL</th></tr>`;
+
+            tbody.innerHTML = '';
+            let complexSums = {}; COMPLEX_ORDER.forEach(c => complexSums[c] = 0);
+            let grandTotal = 0;
+
+            ALLOWED_CATEGORIES.forEach(cat => {
+                let row = `<tr class="border-b hover:bg-gray-50"><td class="p-2 font-semibold text-gray-800">${cat}</td>`;
+                let rowSum = 0;
+
+                COMPLEX_ORDER.forEach(comp => {
+                    const cnt = pet.filter(x => x.complejo === comp && x.tipo === cat).length + 
+                                inc.filter(x => x.complejo === comp && x.tipo === cat).length;
+                    rowSum += cnt;
+                    complexSums[comp] += cnt;
+                    row += `<td class="p-2 text-right text-gray-700">${cnt}</td>`;
                 });
-                tbody.innerHTML += row + `<td class="p-2 text-right font-bold">${rSum}</td></tr>`;
+
+                grandTotal += rowSum;
+                tbody.innerHTML += row + `<td class="p-2 text-right font-bold text-[#1F4E78] bg-blue-50/50">${rowSum}</td></tr>`;
             });
-            createOrUpdateChart('chartTab2', 'bar', ALLOWED_CATEGORIES, ALLOWED_CATEGORIES.map(t=>catSums[t]), 'Categorías');
+
+            let totalRow = `<tr class="bg-gray-100 font-bold border-t-2 border-gray-300"><td class="p-2 text-left">TOTAL GENERAL</td>`;
+            COMPLEX_ORDER.forEach(comp => {
+                totalRow += `<td class="p-2 text-right">${complexSums[comp]}</td>`;
+            });
+            totalRow += `<td class="p-2 text-right text-[#1F4E78] bg-blue-100 font-extrabold">${grandTotal}</td></tr>`;
+            tbody.innerHTML += totalRow;
+
+            let catTotals = ALLOWED_CATEGORIES.map(cat => {
+                return COMPLEX_ORDER.reduce((sum, comp) => {
+                    return sum + pet.filter(x => x.complejo === comp && x.tipo === cat).length + inc.filter(x => x.complejo === comp && x.tipo === cat).length;
+                }, 0);
+            });
+            createOrUpdateChart('chartTab2', 'bar', ALLOWED_CATEGORIES, catTotals, 'Categorías');
         }
 
         function renderTab3(pet) {
@@ -1168,5 +1329,3 @@
     </script>
 </body>
 </html>
-
-```
